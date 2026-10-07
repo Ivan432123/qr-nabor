@@ -1,4 +1,4 @@
-name: Развернуть сервер в Cloudflare
+name: Развернуть сервер в Яндекс Облаке
 
 on:
   push:
@@ -12,99 +12,143 @@ concurrency:
   group: deploy-server
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
-  deploy:
+  test:
+    name: Проверки
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
-      CI: 'true'
-      WRANGLER_SEND_METRICS: 'false'
+    services:
+      ydb:
+        image: ghcr.io/ydb-platform/local-ydb:latest
+        ports: ['2136:2136']
+        options: --hostname localhost
+        env:
+          GRPC_PORT: '2136'
+          YDB_USE_IN_MEMORY_PDISKS: 'true'
     defaults:
       run:
         working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Проверки на базе в памяти
+        run: node test.mjs
+      - name: Проверки на настоящей YDB
+        env:
+          YDB_CONNECTION_STRING: grpc://localhost:2136/local
+          YDB_ANONYMOUS: '1'
+        run: |
+          for i in $(seq 1 30); do node -e "require('net').connect(2136,'localhost').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" && break; sleep 2; done
+          sleep 5
+          OUT=$(timeout 120 node test.mjs 2>&1); CODE=$?
+          echo "$OUT"
+          [ $CODE -eq 0 ] || { echo "::error::YDB-проверки: $(echo "$OUT" | tail -15 | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+
+  deploy:
+    name: Развёртывание
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Проверить секреты
         run: |
           missing=0
-          for v in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ADMIN_PASSWORD TOKEN_SECRET; do
+          for v in YC_SA_KEY YC_FOLDER_ID ADMIN_PASSWORD TOKEN_SECRET; do
             if [ -z "${!v}" ]; then echo "::error::Не задан секрет $v (Settings → Secrets and variables → Actions)"; missing=1; fi
           done
           exit $missing
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Установить wrangler
-        run: npm install -g wrangler@4
-
-      - name: Проверить ключ Cloudflare
+      - name: Установить yc
         run: |
-          OUT=$(wrangler whoami 2>&1) || true
-          echo "$OUT"
-          echo "::notice::whoami: $(echo "$OUT" | grep -viE 'email|@' | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-700)"
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
+          echo "/opt/yc/bin" >> "$GITHUB_PATH"
 
-      - name: Найти или создать базу nabor-db
-        id: db
+      - name: Войти в Яндекс Облако
         run: |
-          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-900)" >&2; exit 1; }
-          find_id() {
-            OUT=$(wrangler d1 list --json 2>&1) || fail "d1 list" "$OUT"
-            echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const i=s.indexOf('[');if(i<0){console.error(s);process.exit(2)}const a=JSON.parse(s.slice(i));const d=a.find(x=>x.name==='nabor-db');process.stdout.write(d?(d.uuid||d.id||''):'')})" || fail "d1 list parse" "$OUT"
-          }
-          ID=$(find_id) || exit 1
-          if [ -z "$ID" ]; then
-            echo "База не найдена — создаю"
-            OUT=$(wrangler d1 create nabor-db 2>&1) || fail "d1 create" "$OUT"
-            ID=$(find_id) || exit 1
-          fi
-          if [ -z "$ID" ]; then echo "::error::Не удалось получить ID базы nabor-db"; exit 1; fi
-          echo "id=$ID" >> "$GITHUB_OUTPUT"
-          echo "База: $ID"
+          printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/key.json"
+          SA=$(node -e "process.stdout.write(require('$RUNNER_TEMP/key.json').service_account_id||'')" 2>&1) || { echo "::error::Секрет YC_SA_KEY — не JSON-ключ сервисного аккаунта"; exit 1; }
+          [ -n "$SA" ] || { echo "::error::В YC_SA_KEY нет service_account_id — нужен «Авторизованный ключ» (JSON)"; exit 1; }
+          yc config set service-account-key "$RUNNER_TEMP/key.json"
+          yc config set folder-id "$YC_FOLDER_ID"
+          echo "SA_ID=$SA" >> "$GITHUB_ENV"
+          OUT=$(yc resource-manager folder get "$YC_FOLDER_ID" 2>&1) || { echo "::error::Нет доступа к каталогу: $(echo "$OUT" | tr '\n' ' ' | cut -c1-600)"; exit 1; }
 
-      - name: Записать настройки Worker
+      - name: База данных nabor-db
         run: |
-          cat > wrangler.toml <<EOF
-          name = "nabor-api"
-          main = "worker.js"
-          compatibility_date = "2025-01-01"
-          workers_dev = true
-
-          [[d1_databases]]
-          binding = "DB"
-          database_name = "nabor-db"
-          database_id = "${{ steps.db.outputs.id }}"
-          EOF
-          cat wrangler.toml
-
-      - name: Создать таблицы (повторно безопасно)
-        run: |
-          OUT=$(wrangler d1 execute nabor-db --remote --file=schema.sql --yes 2>&1) || OUT=$(wrangler d1 execute nabor-db --remote --file=schema.sql 2>&1) || { echo "::error::d1 execute: $(echo "$OUT" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
-          echo "$OUT"
-
-      - name: Выложить сервер
-        run: |
-          set -o pipefail
-          wrangler deploy 2>&1 | tee deploy.log || { echo "::error::deploy: $(tr '\n' ' ' < deploy.log | cut -c1-900)"; exit 1; }
-
-      - name: Записать секреты сервера
-        run: |
-          for n in ADMIN_PASSWORD TOKEN_SECRET; do
-            OUT=$(printf '%s' "${!n}" | wrangler secret put $n 2>&1) || { echo "::error::secret $n: $(echo "$OUT" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
-          done
-
-      - name: Проверить, что сервер отвечает
-        run: |
-          URL=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' deploy.log | head -1)
-          echo "Адрес сервера: $URL"
-          echo "### Адрес сервера: $URL" >> "$GITHUB_STEP_SUMMARY"
-          for i in 1 2 3 4 5 6; do
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          if ! OUT=$(yc ydb database get nabor-db --format json 2>&1); then
+            echo "Создаю базу"
+            OUT=$(yc ydb database create nabor-db --serverless --format json 2>&1) || fail "Создание базы" "$OUT"
             sleep 10
-            if curl -fsS "$URL/api" | tee /dev/stderr | grep -q '"ok":true'; then echo "Сервер работает"; exit 0; fi
+            OUT=$(yc ydb database get nabor-db --format json 2>&1) || fail "База" "$OUT"
+          fi
+          EP=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).endpoint||''))")
+          [ -n "$EP" ] || fail "Нет адреса базы" "$OUT"
+          echo "YDB_EP=$EP" >> "$GITHUB_ENV"
+          echo "База: $EP"
+
+      - name: Функция nabor-api
+        run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          if ! OUT=$(yc serverless function get nabor-api --format json 2>&1); then
+            OUT=$(yc serverless function create nabor-api --description "Партнёрская программа QR-набора" --format json 2>&1) || fail "Создание функции" "$OUT"
+          fi
+          FID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).id||''))")
+          [ -n "$FID" ] || fail "Нет ID функции" "$OUT"
+          echo "FID=$FID" >> "$GITHUB_ENV"
+          OUT=$(yc serverless function allow-unauthenticated-invoke nabor-api 2>&1) || fail "Публичный доступ к функции (нужна роль admin или functions.admin)" "$OUT"
+
+      - name: Выложить новую версию
+        working-directory: backend
+        run: |
+          zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs package.json package-lock.json
+          OUT=$(yc serverless function version create \
+            --function-name nabor-api \
+            --runtime nodejs22 \
+            --entrypoint index.handler \
+            --memory 256m \
+            --execution-timeout 15s \
+            --service-account-id "$SA_ID" \
+            --source-path "$RUNNER_TEMP/fn.zip" \
+            --environment "YDB_CONNECTION_STRING=$YDB_EP" \
+            --environment "ADMIN_PASSWORD=$ADMIN_PASSWORD" \
+            --environment "TOKEN_SECRET=$TOKEN_SECRET" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+          echo "Версия выложена"
+
+      - name: Создать таблицы и проверить сервер
+        run: |
+          URL="https://functions.yandexcloud.net/$FID"
+          echo "### Адрес сервера: $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Адрес сервера: $URL"
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            R=$(curl -sS -m 30 "$URL?r=/api" 2>&1) && echo "$R" | grep -q '"ok":true' && { ok=1; break; }
+            sleep 5
           done
-          echo "::error::Сервер не ответил на $URL/api"; exit 1
+          [ $ok = 1 ] || { echo "::error::Сервер не ответил: $(echo "$R" | cut -c1-600)"; exit 1; }
+          R=$(curl -sS -m 60 -X POST -H "Authorization: Bearer $ADMIN_PASSWORD" "$URL?r=/api/setup" 2>&1)
+          echo "$R" | grep -q '"ok":true' || { echo "::error::Создание таблиц: $(echo "$R" | cut -c1-900)"; exit 1; }
+          R=$(curl -sS -m 30 "$URL?r=/api/check-code&code=TEST00" 2>&1)
+          echo "$R" | grep -q '"valid":false' || { echo "::error::Запрос к базе: $(echo "$R" | cut -c1-900)"; exit 1; }
+          echo "::notice::Сервер и база работают"
+          echo "API_URL=$URL" >> "$GITHUB_ENV"
+
+      - name: Записать адрес сервера на сайт
+        run: |
+          sed -i -E "s#^  API_URL: '[^']*',#  API_URL: '$API_URL',#" config.js
+          if git diff --quiet config.js; then echo "Адрес не изменился"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Адрес сервера: $API_URL" config.js
+          git pull --rebase -q && git push

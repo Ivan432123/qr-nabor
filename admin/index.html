@@ -113,7 +113,7 @@ let token = (()=>{ try{ return sessionStorage.getItem(KEY)||''; }catch(e){ retur
 let data = null;
 
 async function api(path, body){
-  const r = await fetch(API + path, { method: body ? 'POST':'GET', headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer '+token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(naborApi(path), { method: body ? 'POST':'GET', headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer '+token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(()=>({}));
   if (r.status === 401 && path !== '/api/admin/login'){ logout(); throw new Error(d.error || 'Войдите заново'); }
   if (!r.ok) throw new Error(d.error || 'Сервер недоступен');
@@ -185,7 +185,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-save]'); if (!b) return;
   const tr = b.closest('tr'), g = f => tr.querySelector(`[data-f="${f}"]`).value;
   b.disabled = true;
-  try{ await api('/api/admin/lead', { id: +b.dataset.save, status: g('status'), plan: g('plan'), months: g('months') }); await load(); toast('Сохранено'); }
+  try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), months: g('months') }); await load(); toast('Сохранено'); }
   catch(err){ toast(err.message); b.disabled = false; }
 });
 document.addEventListener('submit', async e => {

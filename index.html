@@ -256,7 +256,7 @@ const params = new URLSearchParams(location.search);
 const refIn = (params.get('ref') || params.get('promo') || '').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,20);
 if (refIn){
   saveRef(refIn);
-  if (CFG.API_URL) fetch(CFG.API_URL + '/api/click', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ref: refIn }) }).catch(()=>{});
+  if (CFG.API_URL) fetch(naborApi('/api/click'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ref: refIn }) }).catch(()=>{});
   history.replaceState(null, '', location.pathname + location.hash);
 }
 const ref = getRef();
@@ -272,7 +272,7 @@ $('leadForm').addEventListener('submit', async e => {
   const promo=$('fPromo').value.trim().toUpperCase();
   const btn=$('sendBtn'); btn.disabled=true; btn.textContent='Отправляю…';
   try{
-    const r = await fetch(CFG.API_URL + '/api/lead', { method:'POST', headers:{'Content-Type':'application/json'},
+    const r = await fetch(naborApi('/api/lead'), { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ name, cafe, phone, plan: planValue(), promo, ref: getRef(), website: $('fWeb').value }) });
     const d = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(d.error || 'Ошибка');
