@@ -54,6 +54,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     env:
+      YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
       YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
@@ -64,9 +65,10 @@ jobs:
       - name: Проверить секреты
         run: |
           missing=0
-          for v in YC_SA_KEY YC_FOLDER_ID ADMIN_PASSWORD TOKEN_SECRET; do
+          for v in ADMIN_PASSWORD TOKEN_SECRET; do
             if [ -z "${!v}" ]; then echo "::error::Не задан секрет $v (Settings → Secrets and variables → Actions)"; missing=1; fi
           done
+          if [ -z "$YC_OAUTH_TOKEN" ] && [ -z "$YC_SA_KEY" ]; then echo "::error::Нужен секрет YC_OAUTH_TOKEN (или YC_SA_KEY + YC_FOLDER_ID)"; missing=1; fi
           exit $missing
 
       - name: Установить yc
@@ -74,15 +76,41 @@ jobs:
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
           echo "/opt/yc/bin" >> "$GITHUB_PATH"
 
-      - name: Войти в Яндекс Облако
+      - name: Войти в Яндекс Облако и подготовить каталог
         run: |
-          printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/key.json"
-          SA=$(node -e "process.stdout.write(require('$RUNNER_TEMP/key.json').service_account_id||'')" 2>&1) || { echo "::error::Секрет YC_SA_KEY — не JSON-ключ сервисного аккаунта"; exit 1; }
-          [ -n "$SA" ] || { echo "::error::В YC_SA_KEY нет service_account_id — нужен «Авторизованный ключ» (JSON)"; exit 1; }
-          yc config set service-account-key "$RUNNER_TEMP/key.json"
-          yc config set folder-id "$YC_FOLDER_ID"
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          jget() { node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{let v=JSON.parse(s);for(const k of process.argv[1].split('.'))v=v==null?v:v[k];process.stdout.write(v==null?'':String(v))})" "$1"; }
+          if [ -n "$YC_OAUTH_TOKEN" ]; then
+            yc config set token "$YC_OAUTH_TOKEN"
+            OUT=$(yc resource-manager cloud list --format json 2>&1) || fail "Токен YC_OAUTH_TOKEN не подошёл" "$OUT"
+            CLOUD=$(echo "$OUT" | jget 0.id)
+            [ -n "$CLOUD" ] || fail "Не найдено ни одного облака" "$OUT"
+            echo "Облако: $(echo "$OUT" | jget 0.name) ($CLOUD)"
+            yc config set cloud-id "$CLOUD"
+            if [ -n "$YC_FOLDER_ID" ]; then FOLDER="$YC_FOLDER_ID"; else
+              if ! OUT=$(yc resource-manager folder get qr-nabor --cloud-id "$CLOUD" --format json 2>&1); then
+                OUT=$(yc resource-manager folder create qr-nabor --cloud-id "$CLOUD" --description "Сервер партнёрской программы QR-набора" --format json 2>&1) || fail "Создание каталога qr-nabor" "$OUT"
+              fi
+              FOLDER=$(echo "$OUT" | jget id)
+            fi
+            [ -n "$FOLDER" ] || fail "Нет ID каталога" "$OUT"
+            yc config set folder-id "$FOLDER"
+            if ! OUT=$(yc iam service-account get nabor-api-runtime --format json 2>&1); then
+              OUT=$(yc iam service-account create nabor-api-runtime --description "Сервер QR-набора: доступ к базе" --format json 2>&1) || fail "Создание сервисного аккаунта" "$OUT"
+            fi
+            SA=$(echo "$OUT" | jget id)
+            [ -n "$SA" ] || fail "Нет ID сервисного аккаунта" "$OUT"
+            OUT=$(yc resource-manager folder add-access-binding "$FOLDER" --role ydb.editor --subject "serviceAccount:$SA" 2>&1) || echo "$OUT" | grep -qi "already" || fail "Права для сервисного аккаунта" "$OUT"
+          else
+            printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/key.json"
+            SA=$(node -e "process.stdout.write(require('$RUNNER_TEMP/key.json').service_account_id||'')" 2>/dev/null) || fail "YC_SA_KEY" "не JSON-ключ сервисного аккаунта"
+            [ -n "$SA" ] && [ -n "$YC_FOLDER_ID" ] || fail "YC_SA_KEY / YC_FOLDER_ID" "нужен авторизованный ключ и ID каталога"
+            yc config set service-account-key "$RUNNER_TEMP/key.json"
+            FOLDER="$YC_FOLDER_ID"
+            yc config set folder-id "$FOLDER"
+          fi
           echo "SA_ID=$SA" >> "$GITHUB_ENV"
-          OUT=$(yc resource-manager folder get "$YC_FOLDER_ID" 2>&1) || { echo "::error::Нет доступа к каталогу: $(echo "$OUT" | tr '\n' ' ' | cut -c1-600)"; exit 1; }
+          echo "Каталог: $FOLDER, сервисный аккаунт: $SA"
 
       - name: База данных nabor-db
         run: |
@@ -107,7 +135,7 @@ jobs:
           FID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).id||''))")
           [ -n "$FID" ] || fail "Нет ID функции" "$OUT"
           echo "FID=$FID" >> "$GITHUB_ENV"
-          OUT=$(yc serverless function allow-unauthenticated-invoke nabor-api 2>&1) || fail "Публичный доступ к функции (нужна роль admin или functions.admin)" "$OUT"
+          OUT=$(yc serverless function allow-unauthenticated-invoke nabor-api 2>&1) || fail "Публичный доступ к функции" "$OUT"
 
       - name: Выложить новую версию
         working-directory: backend

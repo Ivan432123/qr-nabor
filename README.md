@@ -3,20 +3,21 @@
 - `index.html` — страница набора для владельцев кафе (сюда ведут реф-ссылки партнёров)
 - `partner/` — регистрация, вход и кабинет партнёра
 - `admin/` — админка: заявки, статусы, партнёры, выплаты
-- `config.js` — настройки: адрес сервера, телефон, ссылка на пример меню
-- `backend/` — сервер (Cloudflare Worker) и таблицы базы D1
-- `.github/workflows/deploy-server.yml` — автоматически выкладывает сервер в Cloudflare при каждом изменении папки `backend`
+- `config.js` — настройки: адрес сервера (пишется автоматически), телефон, ссылка на пример меню
+- `backend/` — сервер: функция Яндекс Cloud Functions + база YDB (работает в России без VPN)
+- `.github/workflows/deploy-server.yml` — при каждом изменении `backend` прогоняет проверки и выкладывает сервер в Яндекс Облако
 
 ## Секреты репозитория (Settings → Secrets and variables → Actions)
 
 | Имя | Что это |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Ключ API Cloudflare с правами на Workers и D1 |
-| `CLOUDFLARE_ACCOUNT_ID` | ID аккаунта Cloudflare |
+| `YC_OAUTH_TOKEN` | OAuth-токен Яндекс Облака. Развёртывание само создаёт каталог `qr-nabor`, базу `nabor-db` и функцию `nabor-api` |
 | `ADMIN_PASSWORD` | Пароль от админки |
 | `TOKEN_SECRET` | Длинная случайная строка для входа партнёров. Не менять после запуска |
 
-Ручной запуск развёртывания: вкладка Actions → «Развернуть сервер в Cloudflare» → Run workflow.
+Вместо `YC_OAUTH_TOKEN` можно задать `YC_SA_KEY` (авторизованный ключ сервисного аккаунта) и `YC_FOLDER_ID`.
+
+Ручной запуск: вкладка Actions → «Развернуть сервер в Яндекс Облаке» → Run workflow.
 
 ## Адреса
 
