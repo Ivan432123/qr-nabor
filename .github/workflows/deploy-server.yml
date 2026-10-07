@@ -80,6 +80,7 @@ jobs:
         run: |
           fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
           jget() { node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{let v=JSON.parse(s);for(const k of process.argv[1].split('.'))v=v==null?v:v[k];process.stdout.write(v==null?'':String(v))})" "$1"; }
+          yc config set endpoint api.cloud.yandex.net:443
           if [ -n "$YC_OAUTH_TOKEN" ]; then
             yc config set token "$YC_OAUTH_TOKEN"
             OUT=$(yc resource-manager cloud list --format json 2>&1) || fail "Токен YC_OAUTH_TOKEN не подошёл" "$OUT"
