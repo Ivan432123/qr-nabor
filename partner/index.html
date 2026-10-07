@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кабинет партнёра</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: два экрана — «Стать партнёром» (лендинг + регистрация) и кабинет (сводка, ссылка и промокод, график переходов, клиенты, выплаты, материалы) */
+:root{
+  --bg:#F6F1E7; --surface:#FFFFFF; --ink:#15262A; --muted:#5A6A69; --line:#E6DCCB;
+  --brand:#0E4D4A; --brand-ink:#FFF6EA; --soft:#DCEEEA;
+  --sun:#F4A92B; --coral:#E8604B;
+  --ok:#1E7B4F; --ok-bg:#DDF2E6; --wait:#8A5A00; --wait-bg:#FFF0CC; --new:#2D4FB0; --new-bg:#E2E9FB; --lost:#6B6B6B; --lost-bg:#ECECEC;
+  --display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:16px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;text-wrap:balance}
+.demo-bar{background:var(--ink);color:#F3EBDD;font-size:13px;padding:8px 16px;text-align:center}
+.demo-bar button{background:transparent;border:1px solid #5B6B6B;color:#F3EBDD;border-radius:999px;padding:3px 12px;margin-left:8px;cursor:pointer}
+
+/* ---------- Landing ---------- */
+.hero{background:var(--brand);color:var(--brand-ink);position:relative;overflow:hidden;padding-block:56px}
+.hero .b1{position:absolute;width:300px;height:300px;border-radius:50%;background:var(--sun);right:-100px;top:-110px}
+.hero .b2{position:absolute;width:90px;height:90px;border-radius:50%;background:var(--coral);right:210px;top:130px}
+.hero-grid{position:relative;display:flex;flex-wrap:wrap;gap:36px;align-items:center}
+.hero-text{flex:1 1 440px;min-width:0;display:flex;flex-direction:column;gap:18px}
+.hero h1{font-size:clamp(32px,5.5vw,54px);font-weight:800}
+.hero p{margin:0;color:#D2E7E3;font-size:18px;max-width:46ch}
+.earn{flex:1 1 300px;min-width:0;background:var(--brand-ink);color:var(--ink);border-radius:26px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.earn h3{font-size:18px}
+.calc-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.calc-row input[type=range]{flex:1 1 auto;accent-color:var(--brand)}
+.big{font-family:var(--display);font-size:34px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+.earn small{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 24px;border-radius:999px;border:0;font-weight:800;cursor:pointer;text-decoration:none}
+.btn.sun{background:var(--sun);color:#15262A}
+.btn.dark{background:var(--brand);color:var(--brand-ink)}
+.btn.line{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+section{padding-block:52px}
+.lead{color:var(--muted);max-width:60ch;margin:10px 0 26px}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;counter-reset:s}
+.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:6px}
+.steps li::before{content:counter(s);font-family:var(--display);font-size:28px;font-weight:800;color:var(--coral)}
+.steps span{color:var(--muted);font-size:15px}
+.rates{width:100%;border-collapse:collapse;background:var(--surface);border-radius:20px;overflow:hidden;border:1px solid var(--line)}
+.rates th,.rates td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--line)}
+.rates th{background:var(--soft);font-size:14px}
+.rates td.num{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl{overflow-x:auto;border-radius:20px}
+.reg{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.reg-intro{flex:1 1 300px;min-width:0}
+.reg-intro ul{padding-left:18px;color:var(--muted)}
+form{flex:1 1 380px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:14px}
+label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+input[type=text],input[type=email],input[type=tel],select{width:100%;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:#fff}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted)}
+.check input{margin-top:3px;width:18px;height:18px;accent-color:var(--brand)}
+.err{color:#A0271A;font-size:14px;margin:0}
+
+/* ---------- Cabinet ---------- */
+.cab-top{background:var(--surface);border-bottom:1px solid var(--line)}
+.cab-top .wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding-block:14px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:16px}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--brand);display:inline-block;position:relative}
+.logo i::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--sun);right:-3px;top:-3px}
+.who{display:flex;align-items:center;gap:10px;font-weight:700}
+.av{width:36px;height:36px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--brand)}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-block:14px 4px}
+.tab{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;font-weight:700;font-size:14px;cursor:pointer;min-height:42px}
+.tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#F6F1E7}
+.cab{padding-block:20px 56px;display:flex;flex-direction:column;gap:18px}
+.hello{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px}
+.hello h1{font-size:clamp(24px,3.5vw,32px)}
+.hello p{margin:4px 0 0;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.tile .k{font-size:13px;color:var(--muted);font-weight:700}
+.tile .v{font-family:var(--display);font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.tile .d{font-size:13px;color:var(--ok);font-weight:700}
+.tile.accent{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.tile.accent .k{color:#C9E2DD}
+.tile.accent .d{color:var(--sun)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card h3{font-size:17px}
+.card .sub{color:var(--muted);font-size:14px;margin-top:-8px}
+.field{display:flex;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 14px}
+.field code{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.copy{flex:0 0 auto;border:0;background:var(--ink);color:#F6F1E7;border-radius:10px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;min-height:38px}
+.promo{font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:.04em;color:var(--brand)}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.list{width:100%;border-collapse:collapse;font-size:15px}
+.list th{text-align:left;font-size:13px;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.list td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.list td.num{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.list th.num{text-align:right}
+.pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)} .p-wait{background:var(--wait-bg);color:var(--wait)} .p-new{background:var(--new-bg);color:var(--new)} .p-lost{background:var(--lost-bg);color:var(--lost)}
+.funnel{display:flex;flex-direction:column;gap:10px}
+.frow{display:grid;grid-template-columns:120px 1fr 56px;gap:10px;align-items:center;font-size:14px}
+.fbar{height:14px;border-radius:7px;background:var(--soft);overflow:hidden}
+.fbar i{display:block;height:100%;background:var(--brand);border-radius:7px}
+.frow b{text-align:right;font-variant-numeric:tabular-nums}
+.payout{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;background:var(--soft);border-radius:18px;padding:16px 18px}
+.payout .big{font-size:28px}
+.mats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.mat{border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.mat .prev{height:110px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:18px;text-align:center;padding:10px}
+.mat p{margin:0;color:var(--muted);font-size:14px}
+.msg{white-space:pre-wrap;background:var(--bg);border-radius:12px;padding:12px;font-size:14px;border:1px solid var(--line)}
+.note{font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#F6F1E7;padding:10px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:9}
+@media (max-width:520px){.frow{grid-template-columns:96px 1fr 44px}}
+
+html,body{margin:0}img{max-width:100%}
+.authbox{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.authbox form{flex:none}
+.switch{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;align-self:flex-start}
+.sw-btn{border:0;background:transparent;border-radius:999px;padding:9px 18px;font-weight:800;cursor:pointer;min-height:42px}
+.sw-btn[aria-selected="true"]{background:var(--ink);color:#F6F1E7}
+input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:#fff}
+.offer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 16px}
+.offer summary{cursor:pointer;font-weight:800}
+.offer ol{padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:6px}
+.loading{text-align:center;padding:80px 16px;color:var(--muted);font-weight:700}
+.btn[disabled]{opacity:.6;cursor:wait}
+@media (max-width:640px){.hero .b2{display:none}.hero .b1{width:180px;height:180px;right:-110px;top:-120px}}
+</style>
+</head>
+<body>
+<!-- ============ LANDING ============ -->
+<div id="landing" hidden>
+  <header class="hero">
+    <div class="b1"></div><div class="b2"></div>
+    <div class="wrap hero-grid">
+      <div class="hero-text">
+        <h1>Зарабатывайте на рекомендациях кафе</h1>
+        <p>Партнёрская программа «Цифрового набора для кафе». Регистрируйтесь, получайте свою ссылку и промокод, рекомендуйте набор владельцам заведений. Всю работу с клиентом делаем мы.</p>
+        <div class="cta-row" style="display:flex;flex-wrap:wrap;gap:12px"><a class="btn sun" href="#reg">Стать партнёром</a><a class="btn" href="#reg" id="toLogin" style="border:2px solid #FFF6EA;color:#FFF6EA">Войти</a></div>
+      </div>
+      <div class="earn">
+        <h3>Сколько вы заработаете</h3>
+        <div class="calc-row"><label for="calcN" style="margin:0">Кафе в месяц</label><b id="calcNv" style="font-variant-numeric:tabular-nums">3</b></div>
+        <input type="range" id="calcN" min="1" max="20" value="3">
+        <div><small>За первый год</small><div class="big" id="calcSum">0 ₽</div></div>
+        <small id="calcNote"></small>
+      </div>
+    </div>
+  </header>
+
+  <section class="wrap">
+    <h2>Как это работает</h2>
+    <p class="lead">От регистрации до первой выплаты — без звонков и согласований.</p>
+    <ol class="steps">
+      <li><b>Регистрация</b><span>Заполняете форму — сразу получаете ссылку, промокод и материалы.</span></li>
+      <li><b>Рекомендация</b><span>Отправляете ссылку владельцу кафе, публикуете в своих каналах или даёте промокод при встрече.</span></li>
+      <li><b>Заказ</b><span>Мы делаем и запускаем меню. В кабинете видно каждую заявку и её статус.</span></li>
+      <li><b>Выплата</b><span>До 10 числа — за все оплаченные заказы прошлого месяца.</span></li>
+    </ol>
+  </section>
+
+  <section class="wrap" style="padding-top:0">
+    <h2>Вознаграждение</h2>
+    <p class="lead">Платим за оплаченные заказы. Ссылка запоминает клиента на 60 дней.</p>
+    <div class="tbl"><table class="rates">
+      <thead><tr><th>За что</th><th>Пакет «Старт»</th><th>Пакет «Стандарт»</th></tr></thead>
+      <tbody>
+        <tr><td>Оплата набора (50%)</td><td class="num">1 500 ₽</td><td class="num">2 500 ₽</td></tr>
+        <tr><td>Поддержка клиента (20%), до 24 месяцев</td><td class="num">200 ₽/мес</td><td class="num">300 ₽/мес</td></tr>
+        <tr><td>Бонус за каждое 5-е оплаченное заведение</td><td class="num" colspan="2">+2 000 ₽</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="wrap" id="reg" style="padding-top:0">
+    <div class="reg">
+      <div class="reg-intro">
+        <h2 id="regTitle">Регистрация</h2>
+        <p class="lead" style="margin-bottom:12px">Займёт минуту. После регистрации сразу откроется кабинет.</p>
+        <ul>
+          <li>Нужен статус самозанятого или ИП</li>
+          <li>Реклама в интернете — только с маркировкой</li>
+          <li>Спам и обман клиентов запрещены</li>
+        </ul>
+        <details class="offer"><summary>Условия партнёрской оферты</summary>
+          <ol>
+            <li>Исполнитель — самозанятый, оказывающий услуги по созданию и поддержке QR-меню. Партнёр — самозанятый или ИП, принявший эти условия.</li>
+            <li>Партнёр рекомендует услуги Исполнителя заведениям. Клиент считается приведённым партнёром, если пришёл по его ссылке (в течение 60 дней) или назвал его промокод до оплаты и ранее не был клиентом Исполнителя.</li>
+            <li>Вознаграждение: 50% от стоимости набора (1 500 ₽ за «Старт», 2 500 ₽ за «Стандарт») после полной оплаты; 20% от ежемесячной поддержки (200 / 300 ₽) за каждый оплаченный месяц, не более 24 месяцев; 2 000 ₽ за каждое пятое оплаченное заведение.</li>
+            <li>Выплаты — до 10 числа за предыдущий месяц, переводом. Партнёр передаёт чек в течение 3 дней после получения денег.</li>
+            <li>Запрещено: спам, обещания сверх пакетов, представляться сотрудником Исполнителя, приводить себя или своё заведение, реклама в интернете без маркировки. При нарушении Исполнитель вправе заблокировать промокод.</li>
+            <li>Исполнитель предупреждает об изменении условий за 14 дней. Уже приведённые клиенты оплачиваются по прежним условиям.</li>
+          </ol>
+        </details>
+      </div>
+      <div class="authbox">
+        <div class="switch" role="tablist">
+          <button type="button" class="sw-btn" id="swReg" aria-selected="true">Регистрация</button>
+          <button type="button" class="sw-btn" id="swLogin" aria-selected="false">Вход</button>
+        </div>
+        <form id="regForm" novalidate>
+          <div><label for="rName">Имя и фамилия</label><input type="text" id="rName" autocomplete="name"></div>
+          <div><label for="rEmail">Email</label><input type="email" id="rEmail" autocomplete="email"></div>
+          <div><label for="rPhone">Телефон для выплат</label><input type="tel" id="rPhone" autocomplete="tel"></div>
+          <div><label for="rPass">Придумайте пароль</label><input type="password" id="rPass" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
+          <div><label for="rStatus">Статус</label><select id="rStatus"><option>Самозанятый</option><option>ИП</option></select></div>
+          <div><label for="rSrc">Где будете рекомендовать</label><select id="rSrc"><option>Знакомые владельцы заведений</option><option>Свой сайт или блог</option><option>Сообщества ВК и MAX</option><option>Реклама с маркировкой</option></select></div>
+          <label class="check"><input type="checkbox" id="rAgree"><span>Принимаю условия партнёрской оферты</span></label>
+          <p class="err" id="regErr" hidden></p>
+          <button class="btn dark" type="submit" id="regBtn">Зарегистрироваться</button>
+        </form>
+        <form id="loginForm" novalidate hidden>
+          <div><label for="lEmail">Email</label><input type="email" id="lEmail" autocomplete="email"></div>
+          <div><label for="lPass">Пароль</label><input type="password" id="lPass" autocomplete="current-password"></div>
+          <p class="err" id="loginErr" hidden></p>
+          <button class="btn dark" type="submit" id="loginBtn">Войти</button>
+          <p class="note">Забыли пароль? Напишите нам — восстановим вручную.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============ CABINET ============ -->
+<div id="cabinet" hidden>
+  <div class="cab-top"><div class="wrap">
+    <div class="logo"><i></i>Партнёрам</div>
+    <div class="who"><span id="whoName"></span><span class="av" id="whoAv"></span><button class="copy" type="button" id="logoutBtn" style="background:transparent;color:var(--muted);border:1px solid var(--line)">Выйти</button></div>
+  </div></div>
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="sum" aria-selected="true">Сводка</button>
+      <button class="tab" role="tab" data-t="clients" aria-selected="false">Клиенты</button>
+      <button class="tab" role="tab" data-t="pay" aria-selected="false">Выплаты</button>
+      <button class="tab" role="tab" data-t="mats" aria-selected="false">Материалы</button>
+    </div>
+
+    <div class="cab" data-p="sum">
+      <div class="hello"><div><h1 id="helloH"></h1><p id="helloSub"></p></div></div>
+      <div class="tiles">
+        <div class="tile accent"><span class="k">К выплате</span><span class="v" id="tDue">0 ₽</span><span class="d" id="tDueNote"></span></div>
+        <div class="tile"><span class="k">Переходов за 30 дней</span><span class="v" id="tClicks">0</span><span class="d" id="tClicksNote"></span></div>
+        <div class="tile"><span class="k">Заявок за 30 дней</span><span class="v" id="tLeads">0</span><span class="d" id="tConv"></span></div>
+        <div class="tile"><span class="k">Оплатили</span><span class="v" id="tActive">0</span><span class="d" id="tBonus"></span></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h3>Ваша ссылка и промокод</h3>
+          <div class="sub">Ссылка запоминает клиента на 60 дней. Промокод даёт клиенту первый месяц поддержки бесплатно.</div>
+          <div class="field"><code id="refLink"></code><button class="copy" type="button" data-copy="refLink">Копировать</button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <span class="promo" id="promoCode"></span>
+            <button class="copy" type="button" data-copy="promoCode">Копировать промокод</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Воронка за 30 дней</h3>
+          <div class="funnel" id="funnel"></div>
+        </div>
+      </div>
+      <div class="card chart">
+        <h3>Переходы и заявки по дням</h3>
+        <div class="legend"><span><b style="background:#9FCBC4"></b>Переходы</span><span><b style="background:#E8604B"></b>Заявки</span></div>
+        <div id="chart"></div>
+      </div>
+      <div class="card" id="emptyHint" hidden>
+        <h3>С чего начать</h3>
+        <ol style="margin:0;padding-left:20px;color:var(--muted)">
+          <li>Откройте вкладку «Материалы» и скопируйте готовое сообщение — в нём уже ваша ссылка.</li>
+          <li>Отправьте его 3–5 знакомым владельцам кафе или администраторам.</li>
+          <li>Переходы и заявки появятся здесь в течение минуты.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="cab" data-p="clients" hidden>
+      <div class="hello"><div><h1>Клиенты</h1><p>Все заявки по вашей ссылке и промокоду</p></div></div>
+      <div class="card"><div style="overflow-x:auto"><table class="list" id="clientsTbl"></table></div>
+      <p class="note">«Ожидает оплаты» — заявка есть, набор ещё не оплачен. Начисление появится после оплаты.</p></div>
+    </div>
+
+    <div class="cab" data-p="pay" hidden>
+      <div class="hello"><div><h1>Выплаты</h1><p>Выплачиваем до 10 числа за прошлый месяц</p></div></div>
+      <div class="payout">
+        <div><div class="note">К выплате</div><div class="big" id="payDue">0 ₽</div></div>
+        <div class="note" id="payInfo"></div>
+      </div>
+      <div class="card"><div style="overflow-x:auto"><table class="list" id="payTbl"></table></div></div>
+    </div>
+
+    <div class="cab" data-p="mats" hidden>
+      <div class="hello"><div><h1>Материалы</h1><p>Готовые тексты и картинки — уже с вашей ссылкой</p></div></div>
+      <div class="card">
+        <h3>Сообщение владельцу кафе</h3>
+        <div class="msg" id="msgText"></div>
+        <div><button class="copy" type="button" data-copy="msgText">Копировать текст</button></div>
+      </div>
+      <div class="card">
+        <h3>Пост для сообществ ВК и MAX</h3>
+        <div class="msg" id="postText"></div>
+        <div><button class="copy" type="button" data-copy="postText">Копировать текст</button></div>
+        <p class="note">Если размещаете платную рекламу, её нужно промаркировать.</p>
+      </div>
+      <div class="mats">
+        <div class="mat"><img src="../img/oblozhka.png" alt="Обложка: QR-меню для кафе" style="border-radius:12px;aspect-ratio:4/3;object-fit:cover;width:100%"><b>Обложка для поста</b><a class="btn line" href="../img/oblozhka.png" download>Скачать</a></div>
+        <div class="mat"><img src="../img/tablichka.png" alt="Табличка на стол с QR-кодом" style="border-radius:12px;aspect-ratio:4/3;object-fit:cover;object-position:top;width:100%"><b>Табличка на стол</b><a class="btn line" href="../img/tablichka.png" download>Скачать</a></div>
+        <div class="mat"><div class="prev" style="background:#DCEEEA;color:#0E4D4A;aspect-ratio:4/3;height:auto">Живой<br>пример меню</div><b>Ссылка на демо</b><a class="btn line" id="demoLink" href="#" target="_blank" rel="noopener">Открыть</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loading">Загрузка…</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="../config.js"></script>
+<script>
+const CFG = window.NABOR_CONFIG || {};
+const API = (CFG.API_URL || '').replace(/\/+$/,'');
+const $ = id => document.getElementById(id);
+const rub = n => Number(n||0).toLocaleString('ru-RU') + ' ₽';
+const RATES = { setup:{start:1500,standard:2500}, monthly:{start:200,standard:300}, bonusEvery:5, bonus:2000 };
+const TOKEN_KEY = 'nabor_partner_token';
+const getToken = () => { try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } };
+const setToken = t => { try{ t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }catch(e){} };
+let memToken = getToken();
+
+async function api(path, opts={}){
+  const headers = { 'Content-Type':'application/json' };
+  if (memToken) headers.Authorization = 'Bearer ' + memToken;
+  const r = await fetch(API + path, { method: opts.body ? 'POST' : 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) { const e = new Error(d.error || 'Сервер недоступен, попробуйте позже'); e.status = r.status; throw e; }
+  return d;
+}
+
+/* --- калькулятор --- */
+function calc(){
+  const n = +$('calcN').value; $('calcNv').textContent = n;
+  let total = 0, clients = 0;
+  for (let m = 1; m <= 12; m++){ total += n * RATES.setup.start + clients * RATES.monthly.start; clients += n; }
+  total += Math.floor(n*12 / RATES.bonusEvery) * RATES.bonus;
+  $('calcSum').textContent = rub(total);
+  $('calcNote').textContent = `Пакет «Старт», клиенты остаются на поддержке. Через год — ${rub(n*12*RATES.monthly.start)} в месяц только с поддержки.`;
+}
+$('calcN').addEventListener('input', calc); calc();
+
+/* --- регистрация / вход --- */
+function mode(m){
+  const login = m === 'login';
+  $('regForm').hidden = login; $('loginForm').hidden = !login;
+  $('swReg').setAttribute('aria-selected', !login); $('swLogin').setAttribute('aria-selected', login);
+  $('regTitle').textContent = login ? 'Вход в кабинет' : 'Регистрация';
+}
+$('swReg').onclick = () => mode('reg'); $('swLogin').onclick = () => mode('login'); $('toLogin').onclick = () => mode('login');
+
+function showErr(id, msg){ $(id).textContent = msg; $(id).hidden = false; }
+$('regForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('regErr').hidden = true;
+  if (!$('rAgree').checked) return showErr('regErr', 'Примите условия оферты');
+  const btn = $('regBtn'); btn.disabled = true; btn.textContent = 'Создаю кабинет…';
+  try{
+    const d = await api('/api/register', { body:{ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value, agree:true } });
+    memToken = d.token; setToken(d.token); await openCabinet(); toast('Готово! Ваша ссылка и промокод созданы');
+  }catch(err){ showErr('regErr', err.message); }
+  btn.disabled = false; btn.textContent = 'Зарегистрироваться';
+});
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('loginErr').hidden = true;
+  const btn = $('loginBtn'); btn.disabled = true; btn.textContent = 'Вхожу…';
+  try{
+    const d = await api('/api/login', { body:{ email:$('lEmail').value, password:$('lPass').value } });
+    memToken = d.token; setToken(d.token); await openCabinet();
+  }catch(err){ showErr('loginErr', err.message); }
+  btn.disabled = false; btn.textContent = 'Войти';
+});
+$('logoutBtn').onclick = () => { memToken = ''; setToken(''); showLanding(); };
+
+/* --- кабинет --- */
+const ST = { new:['Новая заявка','p-new'], waiting:['Ожидает оплаты','p-wait'], paid:['Оплачено','p-ok'], lost:['Отказ','p-lost'] };
+const PL = { start:'Старт', standard:'Стандарт', unknown:'—' };
+const fmtDate = iso => new Date(iso).toLocaleDateString('ru-RU');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function showLanding(){ $('loading').hidden = true; $('landing').hidden = false; $('cabinet').hidden = true; }
+async function openCabinet(){
+  const d = await api('/api/me');
+  $('loading').hidden = true; $('landing').hidden = true; $('cabinet').hidden = false; window.scrollTo({top:0});
+  render(d);
+}
+function render(d){
+  const p = d.partner, s = d.stats;
+  const first = p.name.split(' ')[0];
+  const h = new Date().getHours();
+  $('whoName').textContent = p.name;
+  $('whoAv').textContent = p.name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  $('helloH').textContent = (h<6?'Доброй ночи':h<12?'Доброе утро':h<18?'Добрый день':'Добрый вечер') + ', ' + first;
+  $('helloSub').textContent = 'Ваш промокод ' + p.code + ' · выплаты до 10 числа';
+  const link = (CFG.SITE_URL || '').replace(/\/?$/,'/') + '?ref=' + p.code;
+  $('refLink').textContent = link; $('promoCode').textContent = p.code;
+  $('tDue').textContent = rub(s.balance);
+  $('tDueNote').textContent = 'начислено всего ' + rub(s.earned);
+  $('tClicks').textContent = s.clicks30;
+  $('tClicksNote').textContent = 'уникальные за день';
+  $('tLeads').textContent = s.leads30;
+  $('tConv').textContent = !s.clicks30 ? (s.leads30 ? 'по промокоду' : 'пока нет переходов')
+    : s.leads30 > s.clicks30 ? 'часть — по промокоду'
+    : 'конверсия ' + (s.leads30/s.clicks30*100).toFixed(1).replace('.',',') + '%';
+  $('tActive').textContent = s.paidCount;
+  $('tBonus').textContent = 'до бонуса +2 000 ₽: ' + s.nextBonusIn;
+  $('payDue').textContent = rub(s.balance);
+  $('payInfo').innerHTML = `Выплата до 10 числа на ${esc(p.phone)}.<br>После выплаты пришлите чек из «Мой налог».`;
+  $('emptyHint').hidden = s.leadsTotal > 0 || s.clicks30 > 0;
+
+  const max = Math.max(1, s.clicks30, s.leads30);
+  const steps = [['Переходы', s.clicks30], ['Заявки', s.leads30], ['Оплатили', s.paidCount]];
+  $('funnel').innerHTML = steps.map(([k,v])=>`<div class="frow"><span>${k}</span><span class="fbar"><i style="width:${Math.max(3, Math.min(100, v/max*100))}%"></i></span><b>${v}</b></div>`).join('');
+
+  $('clientsTbl').innerHTML = d.leads.length
+    ? '<thead><tr><th>Дата заявки</th><th>Заведение</th><th>Пакет</th><th>Статус</th><th class="num">Вам начислено</th></tr></thead><tbody>' +
+      d.leads.map(l=>`<tr><td>${fmtDate(l.date)}</td><td><b>${esc(l.cafe)}</b></td><td>${PL[l.plan]||'—'}</td><td><span class="pill ${ST[l.status][1]}">${ST[l.status][0]}</span></td><td class="num">${l.earned?rub(l.earned):'—'}</td></tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td style="color:var(--muted)">Заявок пока нет. Отправьте ссылку первым владельцам кафе.</td></tr></tbody>';
+  $('payTbl').innerHTML = d.payouts.length
+    ? '<thead><tr><th>Дата</th><th>Комментарий</th><th>Чек</th><th class="num">Сумма</th></tr></thead><tbody>' +
+      d.payouts.map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${esc(x.note)||'—'}</td><td><span class="pill ${x.check?'p-ok':'p-wait'}">${x.check?'Чек получен':'Ждём чек'}</span></td><td class="num">${rub(x.amount)}</td></tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td style="color:var(--muted)">Выплат пока не было.</td></tr></tbody>';
+
+  $('msgText').textContent = `Здравствуйте! Хочу посоветовать полезную вещь для вашего заведения — QR-меню: гость наводит камеру на код на столе и видит меню с ценами на своём телефоне. В наборе ещё табличка для отзывов на Яндекс Картах и Wi-Fi по QR. Цены меняются за минуту, перепечатывать меню не нужно. От 3 000 ₽, делают за 2–4 дня.\nПо промокоду ${p.code} первый месяц поддержки бесплатно.\nПодробнее: ${link}`;
+  $('postText').textContent = `Владельцам кафе и кофеен: QR-меню на телефоне гостя, табличка для отзывов на Яндекс Картах и Wi-Fi по QR — одним набором за 2–4 дня.\n\nГость сканирует код на столе, видит меню с ценами и добавками, собирает заказ. Цены меняются за минуту, бумажные меню больше не перепечатываются.\n\nОт 3 000 ₽. По промокоду ${p.code} — первый месяц поддержки бесплатно.\n${link}`;
+  $('demoLink').href = CFG.DEMO_URL || '#';
+  drawChart(d.daily);
+}
+function drawChart(daily){
+  const W=900,H=220,pad={l:34,r:10,t:16,b:26}, n=daily.length;
+  const maxV = Math.max(4, ...daily.map(d=>d.clicks));
+  const step = maxV <= 10 ? 2 : maxV <= 25 ? 5 : 10;
+  const max = Math.ceil(maxV/step)*step;
+  const bw=(W-pad.l-pad.r)/n, y=v=>pad.t+(H-pad.t-pad.b)*(1-v/max);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Переходы и заявки за 30 дней">`;
+  for(let g=0; g<=max; g+=step) s+=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(g)}" y2="${y(g)}" stroke="#E6DCCB"/><text x="${pad.l-8}" y="${y(g)+4}" text-anchor="end" font-size="12" fill="#5A6A69">${g}</text>`;
+  daily.forEach((d,i)=>{ const x=pad.l+i*bw+2;
+    if (d.clicks) s+=`<rect x="${x}" y="${y(d.clicks)}" width="${bw-4}" height="${y(0)-y(d.clicks)}" rx="3" fill="#9FCBC4"><title>${d.day}: переходов ${d.clicks}, заявок ${d.leads}</title></rect>`;
+    if (d.leads) s+=`<circle cx="${x+(bw-4)/2}" cy="${y(d.clicks)-9}" r="5" fill="#E8604B"><title>${d.day}: заявок ${d.leads}</title></circle>`; });
+  s+=`<text x="${pad.l}" y="${H-6}" font-size="12" fill="#5A6A69">30 дней назад</text><text x="${W-pad.r}" y="${H-6}" text-anchor="end" font-size="12" fill="#5A6A69">сегодня</text></svg>`;
+  $('chart').innerHTML = s;
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', b===t));
+  document.querySelectorAll('[data-p]').forEach(p=>p.hidden = p.dataset.p!==t.dataset.t);
+}));
+document.addEventListener('click', async e=>{
+  const b=e.target.closest('[data-copy]'); if(!b) return;
+  const el=$(b.dataset.copy);
+  try{ await navigator.clipboard.writeText(el.textContent); toast('Скопировано'); }
+  catch(err){ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Текст выделен — скопируйте вручную'); }
+});
+let tt; function toast(t){ $('toast').textContent=t; $('toast').hidden=false; clearTimeout(tt); tt=setTimeout(()=>$('toast').hidden=true,2400); }
+
+/* --- старт --- */
+(async () => {
+  if (location.hash === '#login') mode('login');
+  if (!memToken) return showLanding();
+  try { await openCabinet(); }
+  catch(err){ if (err.status === 401){ memToken=''; setToken(''); } showLanding(); }
+})();
+</script>
+
+</body>
+</html>
