@@ -43,17 +43,25 @@ jobs:
       - name: Установить wrangler
         run: npm install -g wrangler@4
 
+      - name: Проверить ключ Cloudflare
+        run: |
+          OUT=$(wrangler whoami 2>&1) || true
+          echo "$OUT"
+          echo "::notice::whoami: $(echo "$OUT" | grep -viE 'email|@' | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-700)"
+
       - name: Найти или создать базу nabor-db
         id: db
         run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-900)"; exit 1; }
           find_id() {
-            wrangler d1 list --json | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const a=JSON.parse(s.slice(s.indexOf('[')));const d=a.find(x=>x.name==='nabor-db');process.stdout.write(d?(d.uuid||d.id||''):'')})"
+            OUT=$(wrangler d1 list --json 2>&1) || fail "d1 list" "$OUT"
+            echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const i=s.indexOf('[');if(i<0){console.error(s);process.exit(2)}const a=JSON.parse(s.slice(i));const d=a.find(x=>x.name==='nabor-db');process.stdout.write(d?(d.uuid||d.id||''):'')})" || fail "d1 list parse" "$OUT"
           }
-          ID=$(find_id)
+          ID=$(find_id) || exit 1
           if [ -z "$ID" ]; then
             echo "База не найдена — создаю"
-            wrangler d1 create nabor-db
-            ID=$(find_id)
+            OUT=$(wrangler d1 create nabor-db 2>&1) || fail "d1 create" "$OUT"
+            ID=$(find_id) || exit 1
           fi
           if [ -z "$ID" ]; then echo "::error::Не удалось получить ID базы nabor-db"; exit 1; fi
           echo "id=$ID" >> "$GITHUB_OUTPUT"
@@ -75,15 +83,20 @@ jobs:
           cat wrangler.toml
 
       - name: Создать таблицы (повторно безопасно)
-        run: wrangler d1 execute nabor-db --remote --file=schema.sql --yes || wrangler d1 execute nabor-db --remote --file=schema.sql
+        run: |
+          OUT=$(wrangler d1 execute nabor-db --remote --file=schema.sql --yes 2>&1) || OUT=$(wrangler d1 execute nabor-db --remote --file=schema.sql 2>&1) || { echo "::error::d1 execute: $(echo "$OUT" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+          echo "$OUT"
 
       - name: Выложить сервер
-        run: wrangler deploy 2>&1 | tee deploy.log
+        run: |
+          set -o pipefail
+          wrangler deploy 2>&1 | tee deploy.log || { echo "::error::deploy: $(tr '\n' ' ' < deploy.log | cut -c1-900)"; exit 1; }
 
       - name: Записать секреты сервера
         run: |
-          printf '%s' "$ADMIN_PASSWORD" | wrangler secret put ADMIN_PASSWORD
-          printf '%s' "$TOKEN_SECRET" | wrangler secret put TOKEN_SECRET
+          for n in ADMIN_PASSWORD TOKEN_SECRET; do
+            OUT=$(printf '%s' "${!n}" | wrangler secret put $n 2>&1) || { echo "::error::secret $n: $(echo "$OUT" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+          done
 
       - name: Проверить, что сервер отвечает
         run: |
