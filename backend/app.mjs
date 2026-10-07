@@ -15,7 +15,7 @@ const STATUSES = ['new', 'waiting', 'paid', 'lost'];
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type,X-Auth',
   'Access-Control-Max-Age': '86400'
 };
 const json = (data, status = 200) => ({ status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS }, body: JSON.stringify(data) });
@@ -74,7 +74,8 @@ async function signToken(payload, env, days = 30) {
   return data + '.' + await hmac(env.TOKEN_SECRET, data);
 }
 async function readToken({ req, env }) {
-  const h = header(req, 'Authorization');
+  // Яндекс забирает заголовок Authorization себе, поэтому токен идёт в X-Auth
+  const h = header(req, 'X-Auth') || header(req, 'Authorization');
   const t = h.startsWith('Bearer ') ? h.slice(7) : '';
   const [data, sig] = t.split('.');
   if (!data || !sig) return null;
@@ -118,7 +119,7 @@ const byDateDesc = (a, b) => (a.created_at < b.created_at ? 1 : -1);
 
 /* ---------- служебное ---------- */
 async function setup({ req, db, env }) {
-  if (!safeEqual(header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD)) return json({ error: 'Нет доступа' }, 401);
+  if (!safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD)) return json({ error: 'Нет доступа' }, 401);
   await db.setup();
   return json({ ok: true });
 }

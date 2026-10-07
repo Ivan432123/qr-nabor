@@ -339,7 +339,7 @@ let memToken = getToken();
 
 async function api(path, opts={}){
   const headers = { 'Content-Type':'application/json' };
-  if (memToken) headers.Authorization = 'Bearer ' + memToken;
+  if (memToken) headers['X-Auth'] = 'Bearer ' + memToken;
   const r = await fetch(naborApi(path), { method: opts.body ? 'POST' : 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
   const d = await r.json().catch(()=>({}));
   if (!r.ok) { const e = new Error(d.error || 'Сервер недоступен, попробуйте позже'); e.status = r.status; throw e; }

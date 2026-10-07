@@ -113,7 +113,7 @@ let token = (()=>{ try{ return sessionStorage.getItem(KEY)||''; }catch(e){ retur
 let data = null;
 
 async function api(path, body){
-  const r = await fetch(naborApi(path), { method: body ? 'POST':'GET', headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer '+token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(naborApi(path), { method: body ? 'POST':'GET', headers: { 'Content-Type':'application/json', ...(token ? { 'X-Auth':'Bearer '+token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(()=>({}));
   if (r.status === 401 && path !== '/api/admin/login'){ logout(); throw new Error(d.error || 'Войдите заново'); }
   if (!r.ok) throw new Error(d.error || 'Сервер недоступен');

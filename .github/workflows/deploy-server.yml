@@ -166,11 +166,18 @@ jobs:
             sleep 5
           done
           [ $ok = 1 ] || { echo "::error::Сервер не ответил: $(echo "$R" | cut -c1-600)"; exit 1; }
-          R=$(curl -sS -m 60 -X POST -H "Authorization: Bearer $ADMIN_PASSWORD" "$URL?r=/api/setup" 2>&1)
+          R=$(curl -sS -m 60 -X POST -H "X-Auth: Bearer $ADMIN_PASSWORD" "$URL?r=/api/setup" 2>&1)
           echo "$R" | grep -q '"ok":true' || { echo "::error::Создание таблиц: $(echo "$R" | cut -c1-900)"; exit 1; }
           R=$(curl -sS -m 30 "$URL?r=/api/check-code&code=TEST00" 2>&1)
           echo "$R" | grep -q '"valid":false' || { echo "::error::Запрос к базе: $(echo "$R" | cut -c1-900)"; exit 1; }
-          echo "::notice::Сервер и база работают"
+          C=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://ivan432123.github.io' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: x-auth' "$URL?r=/api/admin/data")
+          [ "$C" = 204 ] || [ "$C" = 200 ] || { echo "::error::Запрос из браузера (CORS) не проходит: HTTP $C"; exit 1; }
+          BODY=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
+          T=$(curl -sS -m 30 -H 'Content-Type: application/json' -d "$BODY" "$URL?r=/api/admin/login" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{process.stdout.write(JSON.parse(s).token||'')}catch(e){}})")
+          [ -n "$T" ] || { echo "::error::Вход в админку не работает"; exit 1; }
+          R=$(curl -sS -m 30 -H "X-Auth: Bearer $T" "$URL?r=/api/admin/data" 2>&1)
+          echo "$R" | grep -q '"leads"' || { echo "::error::Данные админки: $(echo "$R" | cut -c1-600)"; exit 1; }
+          echo "::notice::Сервер, база и вход в админку работают"
           echo "API_URL=$URL" >> "$GITHUB_ENV"
 
       - name: Записать адрес сервера на сайт

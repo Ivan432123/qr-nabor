@@ -13,14 +13,14 @@ if (useYdb) {
   const { handler } = createRequire(import.meta.url)('./index.js');
   call = async (method, path, body, token, ip = '1.1.1.1', query = {}) => {
     const r = await handler({ httpMethod: method, queryStringParameters: { r: path, ...query },
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Auth': 'Bearer ' + token } : {}) },
       body: body ? JSON.stringify(body) : '', isBase64Encoded: false, requestContext: { identity: { sourceIp: ip } } }, {});
     return { status: r.statusCode, data: r.body ? JSON.parse(r.body) : null };
   };
 } else {
   const db = memoryDb();
   call = async (method, path, body, token, ip = '1.1.1.1', query = {}) => {
-    const r = await handle({ method, path, query, headers: token ? { Authorization: 'Bearer ' + token } : {}, body: body ? JSON.stringify(body) : '', ip }, db, env);
+    const r = await handle({ method, path, query, headers: token ? { 'X-Auth': 'Bearer ' + token } : {}, body: body ? JSON.stringify(body) : '', ip }, db, env);
     return { status: r.status, data: r.body ? JSON.parse(r.body) : null };
   };
 }
