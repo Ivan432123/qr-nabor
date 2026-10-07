@@ -1,0 +1,22 @@
+name: Проверить сервер
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверка
+        run: |
+          API=$(grep -oE "https://[a-zA-Z0-9.-]+\.workers\.dev" config.js | head -1)
+          echo "::notice::API_URL в config.js: $API"
+          R=$(curl -sS -m 20 "$API/api" 2>&1); echo "::notice::GET /api → $R"
+          C=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://ivan432123.github.io' -H 'Access-Control-Request-Method: POST' "$API/api/admin/login" 2>&1); echo "::notice::OPTIONS (CORS) → $C"
+          BODY=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
+          L=$(curl -sS -m 20 -w ' [HTTP %{http_code}]' -H 'Content-Type: application/json' -d "$BODY" "$API/api/admin/login" 2>&1)
+          echo "::notice::Вход (пароль из секрета, длина ${#ADMIN_PASSWORD}) → $(echo "$L" | sed -E 's/"token":"[^"]*"/"token":"…"/')"
+          P=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://ivan432123.github.io/qr-nabor/admin/ 2>&1); echo "::notice::Страница админки → HTTP $P"
