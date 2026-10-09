@@ -1,0 +1,33 @@
+name: Ждать домен и переключить сайт
+
+# Раз в час проверяет, указаны ли у qrstol.ru DNS-серверы Яндекса.
+# Как только да — запускает выкладку сайта (она выпустит HTTPS и переключит адреса).
+# После переключения ничего не делает.
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверить домен
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if grep -q "SITE_URL: 'https://qrstol.ru/'" config.js; then echo "Сайт уже на qrstol.ru — ничего не делаю"; exit 0; fi
+          NS=$(dig +short NS qrstol.ru @8.8.8.8 | tr '\n' ' ')
+          echo "NS: ${NS:-нет}"
+          if echo "$NS" | grep -q yandexcloud; then
+            echo "::notice::Домен смотрит на Яндекс — запускаю выкладку сайта"
+            gh workflow run deploy-site.yml --ref main
+          else
+            echo "::notice::DNS-серверы Яндекса у домена пока не видны — жду"
+          fi
