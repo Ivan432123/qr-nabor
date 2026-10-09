@@ -39,6 +39,7 @@ export async function handle(req, db, env) {
     if (m === 'GET' && path === '/api/admin/data') return await adminData(ctx);
     if (m === 'POST' && path === '/api/admin/lead') return await adminLead(ctx);
     if (m === 'POST' && path === '/api/admin/payout') return await adminPayout(ctx);
+    if (m === 'POST' && path === '/api/admin/delete') return await adminDelete(ctx);
     return json({ error: 'Не найдено' }, 404);
   } catch (e) {
     console.error(e);
@@ -269,5 +270,19 @@ async function adminPayout(ctx) {
   if (!p) return json({ error: 'Партнёр не найден' }, 404);
   if (!(amount > 0 && amount < 10000000)) return json({ error: 'Укажите сумму' }, 400);
   await db.insertPayout({ id: newId(), partner_id: p.id, amount, note: clean(b.note, 200), check_received: b.check ? 1 : 0, created_at: now() });
+  return json({ ok: true });
+}
+
+// Удаление записей (для тестовых данных и ошибок). Партнёр удаляется вместе с его переходами и выплатами,
+// его заявки остаются, но отвязываются от партнёра.
+async function adminDelete(ctx) {
+  if (!(await isAdmin(ctx))) return json({ error: 'Войдите заново' }, 401);
+  const { b, db } = ctx;
+  const id = clean(b.id, 40);
+  if (!id) return json({ error: 'Не указана запись' }, 400);
+  if (b.type === 'lead') await db.deleteLead(id);
+  else if (b.type === 'payout') await db.deletePayout(id);
+  else if (b.type === 'partner') await db.deletePartner(id);
+  else return json({ error: 'Неизвестный тип' }, 400);
   return json({ ok: true });
 }

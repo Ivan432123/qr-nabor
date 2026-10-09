@@ -85,5 +85,16 @@ export const db = {
       VALUES (${x.id}, ${x.partner_id}, ${x.amount}, ${x.note}, ${x.check_received}, ${x.created_at})`;
   },
   async payoutsByPartner(pid) { return rows`SELECT amount, note, check_received, created_at FROM payouts WHERE partner_id = ${pid}`; },
+  async deleteLead(id) { await exec`DELETE FROM leads WHERE id = ${id}`; },
+  async deletePayout(id) { await exec`DELETE FROM payouts WHERE id = ${id}`; },
+  async deletePartner(id) {
+    const sql = await getSql();
+    await sql.begin(async tx => {
+      await tx`DELETE FROM clicks WHERE partner_id = ${id}`;
+      await tx`DELETE FROM payouts WHERE partner_id = ${id}`;
+      await tx`UPDATE leads SET partner_id = '' WHERE partner_id = ${id}`;
+      await tx`DELETE FROM partners WHERE id = ${id}`;
+    });
+  },
   async allPayouts() { return rows`SELECT id, partner_id, amount, note, check_received, created_at FROM payouts`; }
 };

@@ -89,6 +89,22 @@ await step('выплата партнёру', async () => {
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
   assert.equal(d.payouts.find(x => x.partner === code).amount, 3100);
 });
+await step('удаление записей', async () => {
+  let d = (await call('GET', '/api/admin/data', null, admin)).data;
+  const p = d.partners.find(x => x.code === code);
+  const x = d.payouts.find(y => y.partner === code);
+  assert.equal((await call('POST', '/api/admin/delete', { type: 'payout', id: x.id }, token)).status, 401, 'партнёр не может удалять');
+  assert.equal((await call('POST', '/api/admin/delete', { type: 'payout', id: x.id }, admin)).status, 200);
+  assert.equal((await call('GET', '/api/me', null, token)).data.stats.balance, 3100);
+  assert.equal((await call('POST', '/api/admin/delete', { type: 'partner', id: p.id }, admin)).status, 200);
+  d = (await call('GET', '/api/admin/data', null, admin)).data;
+  assert.ok(!d.partners.some(y => y.code === code), 'партнёр не удалён');
+  const l = d.leads.find(y => y.id === leadId); assert.ok(l, 'заявка должна остаться'); assert.equal(l.partner, null);
+  assert.equal((await call('GET', '/api/me', null, token)).status, 401, 'кабинет удалённого партнёра закрыт');
+  assert.equal((await call('POST', '/api/admin/delete', { type: 'lead', id: leadId }, admin)).status, 200);
+  d = (await call('GET', '/api/admin/data', null, admin)).data;
+  assert.ok(!d.leads.some(y => y.id === leadId), 'заявка не удалена');
+});
 await step('чужой токен не подходит', async () => {
   assert.equal((await call('GET', '/api/me', null, token.slice(0, -2) + 'xx')).status, 401);
 });

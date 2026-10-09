@@ -53,6 +53,10 @@ td input[type=number]{width:70px}
 .payform input[type=text]{width:150px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-weight:700}
 .empty{padding:18px;color:var(--muted)}
+.btn-del{border:1px solid transparent;background:none;color:#b42318;font-size:15px;line-height:1;padding:8px 10px;border-radius:10px;cursor:pointer}
+.btn-del:hover{background:#fdecea;border-color:#f5c2bd}
+.btn-del:disabled{opacity:.4;cursor:default}
+td.acts{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -158,25 +162,25 @@ function renderLeads(){
       <td><select data-f="status" aria-label="Статус">${Object.entries(ST).map(([k,v])=>`<option value="${k}"${l.status===k?' selected':''}>${v[0]}</option>`).join('')}</select></td>
       <td><input type="number" min="0" max="120" data-f="months" value="${l.months}" aria-label="Месяцев поддержки"></td>
       <td class="num">${l.partner ? rub(l.earned) : '—'}</td>
-      <td><button class="btn" data-save="${l.id}">Сохранить</button></td></tr>`).join('') + '</tbody>'
+      <td class="acts"><button class="btn" data-save="${l.id}">Сохранить</button><button class="btn-del" data-del="lead" data-id="${esc(l.id)}" data-label="${esc('заявку «'+l.cafe+'»')}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Заявок нет.</td></tr></tbody>';
 }
 function renderPartners(){
   const P = data.partners;
-  $('partnersTbl').innerHTML = P.length ? '<thead><tr><th>Промокод</th><th>Партнёр</th><th>Статус</th><th class="num">Переходы</th><th class="num">Заявки</th><th class="num">Оплатили</th><th class="num">Начислено</th><th class="num">Выплачено</th><th class="num">К выплате</th><th>Выплата</th></tr></thead><tbody>' +
+  $('partnersTbl').innerHTML = P.length ? '<thead><tr><th>Промокод</th><th>Партнёр</th><th>Статус</th><th class="num">Переходы</th><th class="num">Заявки</th><th class="num">Оплатили</th><th class="num">Начислено</th><th class="num">Выплачено</th><th class="num">К выплате</th><th>Выплата</th><th></th></tr></thead><tbody>' +
     P.map(p=>`<tr>
       <td><b>${esc(p.code)}</b></td>
       <td>${esc(p.name)}<br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
       <td>${esc(p.status)}<br><span class="muted">${esc(p.source||'')}</span></td>
       <td class="num">${p.clicks}</td><td class="num">${p.leads}</td><td class="num">${p.paidCount}</td>
       <td class="num">${rub(p.earned)}</td><td class="num">${rub(p.paidOut)}</td><td class="num"><b>${rub(p.balance)}</b></td>
-      <td><form class="payform" data-pay="${esc(p.code)}"><input type="number" min="1" value="${Math.max(0,p.balance)||''}" aria-label="Сумма"><input type="text" placeholder="Комментарий" aria-label="Комментарий"><label class="muted"><input type="checkbox"> чек</label><button class="btn" type="submit">Выплатить</button></form></td></tr>`).join('') + '</tbody>'
+      <td><form class="payform" data-pay="${esc(p.code)}"><input type="number" min="1" value="${Math.max(0,p.balance)||''}" aria-label="Сумма"><input type="text" placeholder="Комментарий" aria-label="Комментарий"><label class="muted"><input type="checkbox"> чек</label><button class="btn" type="submit">Выплатить</button></form></td><td><button class="btn-del" data-del="partner" data-id="${esc(p.id)}" data-label="${esc('партнёра '+p.code+' вместе с его переходами и выплатами (заявки останутся)')}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Партнёров пока нет.</td></tr></tbody>';
 }
 function renderPayouts(){
   const X = data.payouts;
-  $('payoutsTbl').innerHTML = X.length ? '<thead><tr><th>Дата</th><th>Партнёр</th><th>Комментарий</th><th>Чек</th><th class="num">Сумма</th></tr></thead><tbody>' +
-    X.map(x=>`<tr><td>${fmt(x.date)}</td><td><b>${esc(x.partner)}</b></td><td>${esc(x.note)||'—'}</td><td><span class="pill ${x.check?'p-ok':'p-wait'}">${x.check?'Получен':'Нет'}</span></td><td class="num">${rub(x.amount)}</td></tr>`).join('') + '</tbody>'
+  $('payoutsTbl').innerHTML = X.length ? '<thead><tr><th>Дата</th><th>Партнёр</th><th>Комментарий</th><th>Чек</th><th class="num">Сумма</th><th></th></tr></thead><tbody>' +
+    X.map(x=>`<tr><td>${fmt(x.date)}</td><td><b>${esc(x.partner)}</b></td><td>${esc(x.note)||'—'}</td><td><span class="pill ${x.check?'p-ok':'p-wait'}">${x.check?'Получен':'Нет'}</span></td><td class="num">${rub(x.amount)}</td><td><button class="btn-del" data-del="payout" data-id="${esc(x.id)}" data-label="${esc('выплату '+rub(x.amount)+' партнёру '+x.partner)}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Выплат пока не было.</td></tr></tbody>';
 }
 $('fStatus').onchange = renderLeads; $('fSearch').oninput = renderLeads;
@@ -186,6 +190,13 @@ document.addEventListener('click', async e => {
   const tr = b.closest('tr'), g = f => tr.querySelector(`[data-f="${f}"]`).value;
   b.disabled = true;
   try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), months: g('months') }); await load(); toast('Сохранено'); }
+  catch(err){ toast(err.message); b.disabled = false; }
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  if (!confirm('Удалить ' + b.dataset.label + '? Это нельзя отменить.')) return;
+  b.disabled = true;
+  try{ await api('/api/admin/delete', { type: b.dataset.del, id: b.dataset.id }); await load(); toast('Удалено'); }
   catch(err){ toast(err.message); b.disabled = false; }
 });
 document.addEventListener('submit', async e => {

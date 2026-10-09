@@ -24,6 +24,14 @@ export function memoryDb() {
     async updateLead(id, f) { Object.assign(t.leads.find(l => l.id === id), f); },
     async insertPayout(x) { t.payouts.push({ ...x }); },
     async payoutsByPartner(pid) { return copy(t.payouts.filter(x => x.partner_id === pid)); },
+    async deleteLead(id) { t.leads = t.leads.filter(l => l.id !== id); },
+    async deletePayout(id) { t.payouts = t.payouts.filter(x => x.id !== id); },
+    async deletePartner(id) {
+      t.clicks = t.clicks.filter(c => c.partner_id !== id);
+      t.payouts = t.payouts.filter(x => x.partner_id !== id);
+      t.leads.forEach(l => { if (l.partner_id === id) l.partner_id = ''; });
+      t.partners = t.partners.filter(p => p.id !== id);
+    },
     async allPayouts() { return copy(t.payouts); }
   };
 }
