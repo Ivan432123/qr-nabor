@@ -242,7 +242,7 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <div><label for="lPass">Пароль</label><input type="password" id="lPass" autocomplete="current-password"></div>
           <p class="err" id="loginErr" hidden></p>
           <button class="btn dark" type="submit" id="loginBtn">Войти</button>
-          <p class="note">Забыли пароль? Напишите нам — восстановим вручную.</p>
+          <p class="note" id="forgot">Забыли пароль? Напишите в MAX или позвоните: <b id="supPhone" style="user-select:all;white-space:nowrap"></b>. Назовите email, с которым регистрировались, — пришлём новый пароль.</p>
         </form>
       </div>
     </div>
@@ -420,6 +420,7 @@ function mode(m){
 }
 $('swReg').onclick = () => mode('reg'); $('swLogin').onclick = () => mode('login'); $('toLogin').onclick = () => mode('login');
 
+$('supPhone').textContent = CFG.PHONE || '';
 function showErr(id, msg){ $(id).textContent = msg; $(id).hidden = false; }
 $('regForm').addEventListener('submit', async e => {
   e.preventDefault(); $('regErr').hidden = true;

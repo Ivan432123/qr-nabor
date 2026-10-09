@@ -175,7 +175,7 @@ function renderPartners(){
       <td>${p.referrer ? 'пригласил ' + esc(p.referrer) : '<span class="muted">сам</span>'}<br><span class="muted">${p.team1||0} / ${p.team2||0} в команде${p.teamIncome ? ' · ' + rub(p.teamIncome) : ''}</span></td>
       <td class="num">${p.clicks}</td><td class="num">${p.leads}</td><td class="num">${p.paidCount}</td>
       <td class="num">${rub(p.earned)}</td><td class="num">${rub(p.paidOut)}</td><td class="num"><b>${rub(p.balance)}</b></td>
-      <td><form class="payform" data-pay="${esc(p.code)}"><input type="number" min="1" value="${Math.max(0,p.balance)||''}" aria-label="Сумма"><input type="text" placeholder="Комментарий" aria-label="Комментарий"><label class="muted"><input type="checkbox"> чек</label><button class="btn" type="submit">Выплатить</button></form></td><td><button class="btn-del" data-del="partner" data-id="${esc(p.id)}" data-label="${esc('партнёра '+p.code+' вместе с его переходами и выплатами (заявки останутся)')}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
+      <td><form class="payform" data-pay="${esc(p.code)}"><input type="number" min="1" value="${Math.max(0,p.balance)||''}" aria-label="Сумма"><input type="text" placeholder="Комментарий" aria-label="Комментарий"><label class="muted"><input type="checkbox"> чек</label><button class="btn" type="submit">Выплатить</button></form></td><td class="acts"><button class="btn" data-reset="${esc(p.id)}" data-name="${esc(p.name)}" title="Выдать новый пароль">Новый пароль</button><button class="btn-del" data-del="partner" data-id="${esc(p.id)}" data-label="${esc('партнёра '+p.code+' вместе с его переходами и выплатами (заявки останутся)')}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Партнёров пока нет.</td></tr></tbody>';
 }
 function renderPayouts(){
@@ -199,6 +199,18 @@ document.addEventListener('click', async e => {
   b.disabled = true;
   try{ await api('/api/admin/delete', { type: b.dataset.del, id: b.dataset.id }); await load(); toast('Удалено'); }
   catch(err){ toast(err.message); b.disabled = false; }
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-reset]'); if (!b) return;
+  if (!confirm('Выдать новый пароль партнёру ' + b.dataset.name + '? Старый перестанет работать.')) return;
+  b.disabled = true;
+  try{
+    const d = await api('/api/admin/reset-password', { id: b.dataset.reset });
+    const text = `Здравствуйте, ${d.name.split(' ')[0]}! Новый пароль для кабинета партнёра: ${d.password}\nВход: ${(CFG.SITE_URL||'').replace(/\/?$/,'/')}partner/ (email ${d.email})`;
+    try{ await navigator.clipboard.writeText(text); }catch(err){}
+    prompt('Новый пароль создан. Текст для партнёра скопирован — отправьте его в MAX или по СМС на ' + d.phone + ':', text);
+  }catch(err){ toast(err.message); }
+  b.disabled = false;
 });
 document.addEventListener('submit', async e => {
   const f = e.target.closest('[data-pay]'); if (!f) return;

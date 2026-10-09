@@ -41,6 +41,7 @@ export async function handle(req, db, env) {
     if (m === 'POST' && path === '/api/admin/lead') return await adminLead(ctx);
     if (m === 'POST' && path === '/api/admin/payout') return await adminPayout(ctx);
     if (m === 'POST' && path === '/api/admin/delete') return await adminDelete(ctx);
+    if (m === 'POST' && path === '/api/admin/reset-password') return await adminResetPassword(ctx);
     return json({ error: 'Не найдено' }, 404);
   } catch (e) {
     console.error(e);
@@ -316,4 +317,17 @@ async function adminDelete(ctx) {
   else if (b.type === 'partner') await db.deletePartner(id);
   else return json({ error: 'Неизвестный тип' }, 400);
   return json({ ok: true });
+}
+
+// Новый пароль партнёру (забыл пароль): админ получает его один раз и пересылает партнёру.
+async function adminResetPassword(ctx) {
+  if (!(await isAdmin(ctx))) return json({ error: 'Войдите заново' }, 401);
+  const { b, db } = ctx;
+  const p = await db.partnerById(clean(b.id, 40));
+  if (!p) return json({ error: 'Партнёр не найден' }, 404);
+  const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const password = [...crypto.getRandomValues(new Uint8Array(10))].map(x => abc[x % abc.length]).join('');
+  const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+  await db.setPassword(p.id, await hashPassword(password, salt), salt);
+  return json({ ok: true, password, email: p.email, phone: p.phone, name: p.name });
 }

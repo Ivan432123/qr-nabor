@@ -118,6 +118,15 @@ await step('команда: 10% с 1-го уровня и 5% со 2-го', async
   assert.equal(pb.referrer, A.code); assert.equal(pa.teamIncome, 155); assert.equal(pa.team1, 1); assert.equal(pa.team2, 1);
   assert.equal(d2.partners.find(x => x.code === self.code).referrer, null);
 });
+await step('новый пароль партнёру', async () => {
+  const d = (await call('GET', '/api/admin/data', null, admin)).data;
+  const p = d.partners.find(x => x.code === code);
+  assert.equal((await call('POST', '/api/admin/reset-password', { id: p.id }, token)).status, 401);
+  const r = await call('POST', '/api/admin/reset-password', { id: p.id }, admin);
+  assert.equal(r.status, 200); assert.equal(r.data.password.length, 10);
+  assert.equal((await call('POST', '/api/login', { email, password: 'secret1' })).status, 401, 'старый пароль больше не подходит');
+  const l = await call('POST', '/api/login', { email, password: r.data.password }); assert.equal(l.status, 200); token = l.data.token;
+});
 await step('удаление записей', async () => {
   let d = (await call('GET', '/api/admin/data', null, admin)).data;
   const p = d.partners.find(x => x.code === code);

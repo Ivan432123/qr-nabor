@@ -92,6 +92,7 @@ export const db = {
       VALUES (${x.id}, ${x.partner_id}, ${x.amount}, ${x.note}, ${x.check_received}, ${x.created_at})`;
   },
   async payoutsByPartner(pid) { return rows`SELECT amount, note, check_received, created_at FROM payouts WHERE partner_id = ${pid}`; },
+  async setPassword(id, hash, salt) { await exec`UPDATE partners SET pass_hash = ${hash}, salt = ${salt} WHERE id = ${id}`; },
   async deleteLead(id) { await exec`DELETE FROM leads WHERE id = ${id}`; },
   async deletePayout(id) { await exec`DELETE FROM payouts WHERE id = ${id}`; },
   async deletePartner(id) {

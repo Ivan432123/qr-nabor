@@ -24,6 +24,7 @@ export function memoryDb() {
     async updateLead(id, f) { Object.assign(t.leads.find(l => l.id === id), f); },
     async insertPayout(x) { t.payouts.push({ ...x }); },
     async payoutsByPartner(pid) { return copy(t.payouts.filter(x => x.partner_id === pid)); },
+    async setPassword(id, hash, salt) { Object.assign(t.partners.find(p => p.id === id), { pass_hash: hash, salt }); },
     async deleteLead(id) { t.leads = t.leads.filter(l => l.id !== id); },
     async deletePayout(id) { t.payouts = t.payouts.filter(x => x.id !== id); },
     async deletePartner(id) {
