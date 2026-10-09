@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Меню кофейни Зерно</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: одна колонка до 560px, тёмно-бирюзовая шапка с кругами бренда, липкие категории, нижняя панель заказа и выезжающие снизу листы */
+:root{
+  --bg:#FFF6EA; --surface:#FFFFFF; --line:#EFE2CC; --ink:#1D2A29; --muted:#5E6B6A;
+  --brand:#0E4D4A; --on-brand:#FFF6EA; --brand-soft:#CFE5E2;
+  --sun:#F4A92B; --coral:#FF6F59; --shade:rgba(14,30,29,.45);
+  --display:'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --body:'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1A19; --surface:#172625; --line:#253937; --ink:#F1EADF; --muted:#A3B3B1;
+  --brand:#14625E; --on-brand:#FFF6EA; --brand-soft:#BFDCD8; --shade:rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1A19; --surface:#172625; --line:#253937; --ink:#F1EADF; --muted:#A3B3B1;
+  --brand:#14625E; --on-brand:#FFF6EA; --brand-soft:#BFDCD8; --shade:rgba(0,0,0,.6); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding-bottom:110px}
+
+header.top{background:var(--brand);color:var(--on-brand);padding:22px 20px 26px;border-radius:0 0 30px 30px;position:relative;overflow:hidden}
+.blob{position:absolute;border-radius:999px}
+.b1{right:-44px;top:-44px;width:150px;height:150px;background:var(--sun)}
+.b2{right:64px;top:74px;width:54px;height:54px;background:var(--coral)}
+.top-row{position:relative;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip-table{background:var(--on-brand);color:#0E4D4A;font-weight:800;font-size:13px;padding:6px 12px;border-radius:999px}
+.brand{position:relative;font-family:var(--display);font-size:34px;font-weight:800;letter-spacing:.04em;margin:12px 0 2px}
+.sub{position:relative;color:var(--brand-soft);font-size:15px}
+
+nav.cats{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:8px;overflow-x:auto;padding:14px 16px 10px;scrollbar-width:none}
+nav.cats::-webkit-scrollbar{display:none}
+.cat{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;min-height:44px}
+.cat[aria-pressed="true"]{background:var(--coral);border-color:var(--coral);color:#1D2A29;font-weight:800}
+
+.promo{margin:4px 16px 0;background:var(--sun);color:#1D2A29;border:0;border-radius:22px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;width:calc(100% - 32px);text-align:left}
+.promo small{display:block;font-weight:800;font-size:13px}
+.promo b{font-size:16px}
+.promo .p{font-family:var(--display);font-size:19px;font-weight:800;white-space:nowrap}
+
+h2.sec{font-family:var(--display);font-weight:600;font-size:18px;margin:22px 16px 10px;text-wrap:balance}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0}
+.thumb{height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.tag{position:absolute;left:8px;top:8px;background:var(--coral);color:#1D2A29;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}
+.card .n{font-weight:800;font-size:15px}
+.card .d{font-size:12px;color:var(--muted)}
+.card .row{display:flex;justify-content:space-between;align-items:center;margin-top:auto;gap:6px}
+.price{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.plus{width:36px;height:36px;border-radius:999px;background:var(--brand);color:var(--on-brand);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+
+.callbtn{display:flex;align-items:center;justify-content:center;gap:10px;margin:22px 16px 0;width:calc(100% - 32px);min-height:52px;border-radius:18px;border:2px solid var(--brand);background:transparent;color:var(--ink);font-weight:800}
+
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:10}
+.bar button{max-width:528px;margin:0 auto;width:100%;min-height:58px;border:0;border-radius:18px;background:var(--brand);color:var(--on-brand);display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-weight:800;font-size:16px;box-shadow:0 10px 24px rgba(14,77,74,.3)}
+.count{background:var(--sun);color:#1D2A29;min-width:28px;height:28px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;margin-right:10px;padding:0 6px}
+
+.shade{position:fixed;inset:0;background:var(--shade);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-height:92%;overflow-y:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.sheet{animation:none}}
+.grab{width:44px;height:5px;border-radius:999px;background:var(--line);margin:0 auto 12px}
+.sheet h3{font-family:var(--display);font-size:22px;font-weight:800;margin:6px 0 4px;text-wrap:balance}
+.big-thumb{height:170px;border-radius:22px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.big-thumb img{width:100%;height:100%;object-fit:cover}
+.lbl{font-weight:800;font-size:14px;margin:16px 0 8px}
+.seg{display:flex;gap:8px}
+.seg button{flex:1 1 0;min-height:46px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:800}
+.opt{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;min-height:48px;text-align:left}
+.box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:inline-flex;align-items:center;justify-content:center;margin-right:10px;flex:0 0 auto}
+.opt[aria-pressed="true"] .box{background:var(--brand);border-color:var(--brand)}
+.opt .l{display:flex;align-items:center;font-weight:600}
+.opt .r{color:var(--muted);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.foot{display:flex;gap:10px;margin-top:18px;align-items:center}
+.stepper{display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;height:56px;padding:0 4px}
+.stepper button{width:44px;height:44px;border:0;background:transparent;font-size:22px;font-weight:800}
+.stepper span{min-width:22px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+.primary{flex:1 1 auto;min-height:56px;border:0;border-radius:18px;background:var(--brand);color:var(--on-brand);font-weight:800;font-size:16px;display:flex;justify-content:space-between;align-items:center;padding:0 18px}
+.line{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.line .info{flex:1 1 auto;min-width:0}
+.line .info b{display:block}
+.line .info small{color:var(--muted)}
+.mini{display:flex;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.mini button{width:36px;height:36px;border:0;background:transparent;font-weight:800;font-size:18px}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;font-weight:800}
+.total .price{font-size:22px}
+.ghost{background:transparent;border:0;color:var(--muted);font-weight:700;text-decoration:underline;padding:10px 0;min-height:44px}
+
+.show{position:fixed;inset:0;z-index:30;background:var(--brand);color:var(--on-brand);display:flex;flex-direction:column;padding:calc(28px + env(safe-area-inset-top,0px)) 22px calc(22px + env(safe-area-inset-bottom,0px));overflow-y:auto}
+.show .t{font-family:var(--display);font-size:52px;font-weight:800;line-height:1}
+.show .k{color:var(--brand-soft);font-weight:700;margin-top:6px}
+.show ul{list-style:none;padding:0;margin:22px 0 0;display:flex;flex-direction:column;gap:12px;font-size:18px}
+.show li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(255,246,234,.18);padding-bottom:10px}
+.show li small{display:block;color:var(--brand-soft);font-size:14px}
+.show .sum{display:flex;justify-content:space-between;font-family:var(--display);font-size:26px;font-weight:800;margin-top:18px}
+.show .close{margin-top:auto;min-height:56px;border:0;border-radius:18px;background:var(--on-brand);color:#0E4D4A;font-weight:800;font-size:16px}
+.empty{color:var(--muted);text-align:center;padding:28px 0}
+</style>
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <div class="top-row"><span class="chip-table" id="tableChip">Стол № 5</span></div>
+    <div class="brand">ЗЕРНО</div>
+    <div class="sub">Кофейня · ул. Садовая, 15 · с 8:00 до 22:00</div>
+  </header>
+
+  <nav class="cats" id="cats" aria-label="Категории меню"></nav>
+
+  <button class="promo" id="promo" type="button">
+    <span><small>До 11:00</small><b>Капучино + круассан</b></span>
+    <span class="p">290 ₽</span>
+  </button>
+
+  <main id="menu"></main>
+
+  <button class="callbtn" id="callWaiter" type="button">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg>
+    Позвать официанта
+  </button>
+</div>
+
+<div class="bar" id="bar" hidden><button type="button" id="openCart"><span><span class="count" id="cartCount">0</span>Мой заказ</span><span class="price" id="cartSum" style="color:inherit">0 ₽</span></button></div>
+
+<div class="shade" id="shade" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+<div class="show" id="show" hidden></div>
+
+<script>
+/* ===== НАСТРОЙКИ ЗАВЕДЕНИЯ — меняйте здесь ===== */
+const CAFE = { name: 'Зерно', defaultTable: 5 };
+
+const CATEGORIES = [
+  { id: 'coffee', name: 'Кофе' },
+  { id: 'tea', name: 'Чай' },
+  { id: 'dessert', name: 'Десерты' },
+  { id: 'breakfast', name: 'Завтраки' }
+];
+
+const COFFEE_SIZES = [{ label: '250 мл', add: 0 }, { label: '350 мл', add: 40 }, { label: '450 мл', add: 80 }];
+const COFFEE_EXTRAS = [{ label: 'Растительное молоко', price: 40 }, { label: 'Дополнительный шот', price: 60 }, { label: 'Сироп', price: 30 }];
+
+/* photo: ссылка на фото блюда (необязательно). Без фото показывается цветная плашка с иконкой. */
+const MENU = [
+  { id: 'cap', cat: 'coffee', name: 'Капучино', desc: 'Эспрессо и бархатная молочная пена', price: 220, sizes: COFFEE_SIZES, extras: COFFEE_EXTRAS, tag: 'Хит', bg: '#FFE0D9', ink: '#C2412D', icon: 'cup' },
+  { id: 'raf', cat: 'coffee', name: 'Раф лавандовый', desc: 'Сливки и лавандовый сироп', price: 280, sizes: COFFEE_SIZES, extras: COFFEE_EXTRAS, bg: '#E6E0FF', ink: '#6A48D7', icon: 'cup' },
+  { id: 'flat', cat: 'coffee', name: 'Флэт уайт', desc: 'Двойной эспрессо, меньше пены', price: 240, sizes: COFFEE_SIZES.slice(0, 2), extras: COFFEE_EXTRAS, bg: '#D7EEEA', ink: '#0E4D4A', icon: 'cup' },
+  { id: 'cocoa', cat: 'coffee', name: 'Какао с маршмеллоу', desc: 'Густое, на молоке', price: 230, sizes: COFFEE_SIZES, extras: [], bg: '#FFEDC4', ink: '#B26D00', icon: 'cup' },
+  { id: 'sea', cat: 'tea', name: 'Облепиховый чай', desc: 'С мёдом и апельсином, 500 мл', price: 260, bg: '#FFE7C2', ink: '#C26A00', icon: 'tea' },
+  { id: 'green', cat: 'tea', name: 'Зелёный с жасмином', desc: 'Чайник 500 мл', price: 190, bg: '#DDF2DA', ink: '#2F7A2A', icon: 'tea' },
+  { id: 'cheese', cat: 'dessert', name: 'Чизкейк Нью-Йорк', desc: 'Классический, с ягодным соусом', price: 290, tag: 'Новинка', bg: '#FFF1D6', ink: '#A86A00', icon: 'cake' },
+  { id: 'crois', cat: 'dessert', name: 'Круассан', desc: 'Сливочный, свежий каждое утро', price: 140, extras: [{ label: 'С ветчиной и сыром', price: 90 }], bg: '#FFE9CF', ink: '#B5651D', icon: 'cake' },
+  { id: 'syrn', cat: 'breakfast', name: 'Сырники', desc: 'Со сметаной и ягодами', price: 320, bg: '#FFE0D9', ink: '#C2412D', icon: 'plate' },
+  { id: 'omlet', cat: 'breakfast', name: 'Омлет с овощами', desc: 'Три яйца, томаты, шпинат', price: 290, extras: [{ label: 'Бекон', price: 80 }], bg: '#E8F0D8', ink: '#4F6B1F', icon: 'plate' }
+];
+
+const PROMO = { id: 'promo', name: 'Капучино + круассан', desc: 'Утреннее предложение до 11:00', price: 290, bg: '#FFE7B8', ink: '#9A5B00', icon: 'cup' };
+/* ===== конец настроек ===== */
+
+const ICONS = {
+  cup: '<path d="M5 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M9 3v3M13 3v3"/>',
+  tea: '<path d="M4 10h14v3a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6z"/><path d="M18 11h1.5a2.5 2.5 0 0 1 0 5H18"/><path d="M11 3c0 2 2 2 2 4"/>',
+  cake: '<path d="M4 20h16v-7H4z"/><path d="M4 15c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 4 0"/><path d="M12 13V9M12 6v.01"/>',
+  plate: '<circle cx="12" cy="13" r="8"/><circle cx="12" cy="13" r="4.5"/><path d="M3 5l2 2M21 5l-2 2"/>'
+};
+const svg = (name, color, size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.plate}</svg>`;
+const rub = n => n.toLocaleString('ru-RU') + ' ₽';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const thumb = (it, size) => it.photo ? `<img src="${esc(it.photo)}" alt="">` : svg(it.icon, it.ink, size);
+
+const tableMatch = (location.hash || '').match(/\d+/);
+const TABLE = tableMatch ? tableMatch[0] : CAFE.defaultTable;
+document.getElementById('tableChip').textContent = 'Стол № ' + TABLE;
+
+const STORE = 'zerno-cart';
+let cart = [];
+try { cart = JSON.parse(localStorage.getItem(STORE) || '[]') || []; } catch (e) { cart = []; }
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(cart)); } catch (e) {} };
+
+let activeCat = CATEGORIES[0].id;
+const all = () => MENU.concat([PROMO]);
+const find = id => all().find(i => i.id === id);
+
+function renderCats() {
+  document.getElementById('cats').innerHTML = CATEGORIES.map(c =>
+    `<button class="cat" type="button" data-cat="${c.id}" aria-pressed="${c.id === activeCat}">${esc(c.name)}</button>`).join('');
+}
+function renderMenu() {
+  const cat = CATEGORIES.find(c => c.id === activeCat);
+  const items = MENU.filter(i => i.cat === activeCat);
+  document.getElementById('menu').innerHTML = `<h2 class="sec">${esc(cat.name)}</h2><div class="grid">` + items.map(it => `
+    <button class="card" type="button" data-open="${it.id}" aria-label="${esc(it.name)}, ${rub(it.price)}">
+      <div class="thumb" style="background:${it.bg}">${thumb(it, 46)}${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ''}</div>
+      <span class="n">${esc(it.name)}</span>
+      <span class="d">${esc(it.desc)}</span>
+      <span class="row"><span class="price">${it.sizes ? 'от ' : ''}${rub(it.price)}</span>
+      <span class="plus" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></span>
+    </button>`).join('') + '</div>';
+}
+function renderBar() {
+  const count = cart.reduce((s, l) => s + l.qty, 0);
+  const sum = cart.reduce((s, l) => s + l.unit * l.qty, 0);
+  document.getElementById('bar').hidden = count === 0;
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('cartSum').textContent = rub(sum);
+}
+
+const sheet = document.getElementById('sheet'), shade = document.getElementById('shade'), show = document.getElementById('show');
+function openSheet(html) { sheet.innerHTML = '<div class="grab"></div>' + html; sheet.hidden = false; shade.hidden = false; sheet.scrollTop = 0; }
+function closeSheet() { sheet.hidden = true; shade.hidden = true; }
+shade.addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheet(); show.hidden = true; } });
+
+let pick = null;
+function unitPrice(it, p) {
+  let u = it.price;
+  if (it.sizes) u += it.sizes[p.size].add;
+  (it.extras || []).forEach((x, i) => { if (p.extras.includes(i)) u += x.price; });
+  return u;
+}
+function openDish(id) {
+  const it = find(id);
+  pick = pick && pick.id === id ? pick : { id, size: 0, extras: [], qty: 1 };
+  const u = unitPrice(it, pick);
+  openSheet(`
+    <div class="big-thumb" style="background:${it.bg}">${thumb(it, 96)}</div>
+    <h3>${esc(it.name)}</h3><div style="color:var(--muted)">${esc(it.desc)}</div>
+    ${it.sizes ? `<div class="lbl">Объём</div><div class="seg">${it.sizes.map((s, i) =>
+      `<button type="button" data-size="${i}" aria-pressed="${i === pick.size}">${esc(s.label)}</button>`).join('')}</div>` : ''}
+    ${(it.extras || []).length ? `<div class="lbl">Добавить</div>${it.extras.map((x, i) => `
+      <button class="opt" type="button" data-extra="${i}" aria-pressed="${pick.extras.includes(i)}">
+        <span class="l"><span class="box">${pick.extras.includes(i) ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>' : ''}</span>${esc(x.label)}</span>
+        <span class="r">+${rub(x.price)}</span></button>`).join('')}` : ''}
+    <div class="foot">
+      <div class="stepper"><button type="button" data-q="-1" aria-label="Меньше">−</button><span>${pick.qty}</span><button type="button" data-q="1" aria-label="Больше">+</button></div>
+      <button class="primary" type="button" id="addBtn"><span>В заказ</span><span class="price" style="color:inherit">${rub(u * pick.qty)}</span></button>
+    </div>`);
+}
+function addPick() {
+  const it = find(pick.id);
+  const unit = unitPrice(it, pick);
+  const parts = [];
+  if (it.sizes) parts.push(it.sizes[pick.size].label);
+  (it.extras || []).forEach((x, i) => { if (pick.extras.includes(i)) parts.push(x.label.toLowerCase()); });
+  const key = pick.id + '|' + pick.size + '|' + pick.extras.slice().sort().join(',');
+  const same = cart.find(l => l.key === key);
+  if (same) same.qty += pick.qty; else cart.push({ key, name: it.name, note: parts.join(', '), unit, qty: pick.qty });
+  pick = null; save(); renderBar(); closeSheet();
+}
+
+function openCart() {
+  const sum = cart.reduce((s, l) => s + l.unit * l.qty, 0);
+  openSheet(`<h3>Мой заказ</h3><div style="color:var(--muted)">Стол № ${TABLE}</div>
+    ${cart.length ? cart.map((l, i) => `<div class="line"><div class="info"><b>${esc(l.name)}</b>${l.note ? `<small>${esc(l.note)}</small>` : ''}<div class="price" style="font-size:14px;margin-top:2px">${rub(l.unit * l.qty)}</div></div>
+      <div class="mini"><button type="button" data-line="${i}" data-d="-1" aria-label="Убрать одну">−</button><span style="min-width:18px;text-align:center;font-weight:800">${l.qty}</span><button type="button" data-line="${i}" data-d="1" aria-label="Добавить ещё">+</button></div></div>`).join('')
+      : '<div class="empty">Заказ пуст. Выберите что-нибудь в меню.</div>'}
+    ${cart.length ? `<div class="total"><span>Итого</span><span class="price">${rub(sum)}</span></div>
+    <div class="foot"><button class="primary" type="button" id="showOrder"><span>Показать официанту</span><span aria-hidden="true">→</span></button></div>
+    <button class="ghost" type="button" id="clearCart">Очистить заказ</button>` : ''}`);
+}
+function showOrder() {
+  const sum = cart.reduce((s, l) => s + l.unit * l.qty, 0);
+  closeSheet();
+  show.innerHTML = `<div class="t">Стол ${TABLE}</div><div class="k">Заказ для официанта · кофейня ${esc(CAFE.name)}</div>
+    <ul>${cart.map(l => `<li><span>${esc(l.name)} × ${l.qty}${l.note ? `<small>${esc(l.note)}</small>` : ''}</span><span>${rub(l.unit * l.qty)}</span></li>`).join('')}</ul>
+    <div class="sum"><span>Итого</span><span>${rub(sum)}</span></div>
+    <button class="close" type="button" id="closeShow" style="margin-top:28px">Вернуться в меню</button>`;
+  show.hidden = false;
+}
+function callWaiter() {
+  show.innerHTML = `<div class="t">Стол ${TABLE}</div><div class="k" style="font-size:20px;margin-top:14px">Покажите этот экран или поднимите телефон — официант подойдёт к вам.</div>
+    <button class="close" type="button" id="closeShow">Вернуться в меню</button>`;
+  show.hidden = false;
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.cat) { activeCat = t.dataset.cat; renderCats(); renderMenu(); return; }
+  if (t.dataset.open) { pick = null; openDish(t.dataset.open); return; }
+  if (t.id === 'promo') { pick = null; openDish('promo'); return; }
+  if (t.dataset.size) { pick.size = +t.dataset.size; openDish(pick.id); return; }
+  if (t.dataset.extra) { const i = +t.dataset.extra; pick.extras = pick.extras.includes(i) ? pick.extras.filter(x => x !== i) : pick.extras.concat(i); openDish(pick.id); return; }
+  if (t.dataset.q) { pick.qty = Math.max(1, pick.qty + +t.dataset.q); openDish(pick.id); return; }
+  if (t.id === 'addBtn') { addPick(); return; }
+  if (t.id === 'openCart') { openCart(); return; }
+  if (t.dataset.line) { const l = cart[+t.dataset.line]; l.qty += +t.dataset.d; if (l.qty <= 0) cart.splice(+t.dataset.line, 1); save(); renderBar(); openCart(); return; }
+  if (t.id === 'clearCart') { cart = []; save(); renderBar(); closeSheet(); return; }
+  if (t.id === 'showOrder') { showOrder(); return; }
+  if (t.id === 'callWaiter') { callWaiter(); return; }
+  if (t.id === 'closeShow') { show.hidden = true; return; }
+});
+
+renderCats(); renderMenu(); renderBar();
+</script>
+</body>
+</html>

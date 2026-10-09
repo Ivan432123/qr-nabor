@@ -1,0 +1,164 @@
+name: Выложить сайт на qrstol.ru
+
+# Главный сайт (набор, кабинет партнёра, админка) → бакет qrstol.ru
+# Меню кафе из папки cafes/<имя>/ → бакет <имя>.qrstol.ru
+# DNS-зона, сертификат *.qrstol.ru и записи создаются автоматически.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'backend/**'
+      - 'README.md'
+      - '.github/workflows/deploy-server.yml'
+      - '.github/workflows/check-server.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+env:
+  DOMAIN: qrstol.ru
+  ZONE_NAME: qrstol-ru
+  CERT_NAME: qrstol-wildcard
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    env:
+      YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить yc и войти
+        run: |
+          [ -n "$YC_SA_KEY" ] && [ -n "$YC_FOLDER_ID" ] || { echo "::error::Нужны секреты YC_SA_KEY и YC_FOLDER_ID"; exit 1; }
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n
+          echo "/opt/yc/bin" >> "$GITHUB_PATH"
+          export PATH="/opt/yc/bin:$PATH"
+          printf '%s' "$YC_SA_KEY" > "$RUNNER_TEMP/key.json"
+          yc config set endpoint api.cloud.yandex.net:443
+          yc config set service-account-key "$RUNNER_TEMP/key.json"
+          yc config set folder-id "$YC_FOLDER_ID"
+          SA=$(node -e "process.stdout.write(require('$RUNNER_TEMP/key.json').service_account_id||'')")
+          echo "SA_ID=$SA" >> "$GITHUB_ENV"
+
+      - name: Список сайтов
+        run: |
+          HOSTS="$DOMAIN"
+          for d in cafes/*/; do
+            [ -d "$d" ] || continue
+            slug=$(basename "$d")
+            echo "$slug" | grep -Eq '^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$' || { echo "::error::Папка cafes/$slug: имя только латиницей, цифрами и дефисом"; exit 1; }
+            HOSTS="$HOSTS $slug.$DOMAIN"
+          done
+          echo "HOSTS=$HOSTS" >> "$GITHUB_ENV"
+          echo "Сайты: $HOSTS"
+
+      - name: DNS-зона
+        run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          if ! yc dns zone get "$ZONE_NAME" >/dev/null 2>&1; then
+            OUT=$(yc dns zone create --name "$ZONE_NAME" --zone "$DOMAIN." --public-visibility 2>&1) || fail "Создание DNS-зоны" "$OUT"
+          fi
+          NS=$(dig +short NS "$DOMAIN" @8.8.8.8 | tr '\n' ' ')
+          echo "NS у домена: $NS"
+          if echo "$NS" | grep -q yandexcloud; then echo "DELEGATED=1" >> "$GITHUB_ENV"; echo "::notice::DNS-серверы Яндекса у домена указаны";
+          else echo "DELEGATED=0" >> "$GITHUB_ENV"; echo "::warning::У домена ещё не указаны DNS-серверы Яндекса (сейчас: ${NS:-нет}). Нужно ns1.yandexcloud.net и ns2.yandexcloud.net в REG.RU"; fi
+
+      - name: Сертификат qrstol.ru и *.qrstol.ru
+        run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          if ! yc certificate-manager certificate get --name "$CERT_NAME" >/dev/null 2>&1; then
+            OUT=$(yc certificate-manager certificate request --name "$CERT_NAME" --domains "$DOMAIN,*.$DOMAIN" --challenge dns 2>&1) || fail "Запрос сертификата" "$OUT"
+            sleep 15
+          fi
+          yc certificate-manager certificate get --name "$CERT_NAME" --full --format json > "$RUNNER_TEMP/cert.json"
+          # записи для проверки домена (CNAME — одна на оба имени; иначе TXT)
+          node -e '
+            const c = require(process.argv[1]);
+            const ch = (c.challenges || []).map(x => x.dns_challenge).filter(Boolean);
+            const cn = ch.filter(x => x.type === "CNAME");
+            const use = cn.length ? cn : ch.filter(x => x.type === "TXT");
+            const sets = {};
+            for (const x of use) { const k = x.name + " " + x.type; (sets[k] = sets[k] || new Set()).add(x.value); }
+            for (const [k, vals] of Object.entries(sets)) { const [name, type] = k.split(" "); console.log([name, type, ...vals].join(" ")); }
+            require("fs").writeFileSync(process.env.GITHUB_ENV, `CERT_ID=${c.id}\nCERT_STATUS=${c.status}\n`, { flag: "a" });
+          ' "$RUNNER_TEMP/cert.json" > "$RUNNER_TEMP/challenges.txt"
+          cat "$RUNNER_TEMP/challenges.txt"
+          while read -r name type vals; do
+            [ -n "$name" ] || continue
+            args=()
+            for v in $vals; do
+              [ "$type" = TXT ] && v="\"$v\""
+              args+=(--record "$name 300 $type $v")
+            done
+            OUT=$(yc dns zone replace-records --name "$ZONE_NAME" "${args[@]}" 2>&1) || fail "Запись проверки домена $name" "$OUT"
+          done < "$RUNNER_TEMP/challenges.txt"
+          S=$(node -e "process.stdout.write(require('$RUNNER_TEMP/cert.json').status)")
+          echo "::notice::Сертификат: $S"
+
+      - name: Хранилище и DNS-записи для сайтов
+        run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          for h in $HOSTS; do
+            if ! yc storage bucket get "$h" >/dev/null 2>&1; then
+              OUT=$(yc storage bucket create --name "$h" --default-storage-class standard --max-size 1073741824 2>&1) || fail "Бакет $h" "$OUT"
+            fi
+            OUT=$(yc storage bucket update --name "$h" --public-read 2>&1) || OUT=$(yc storage bucket update --name "$h" --anonymous-access-flags read=true 2>&1) || fail "Публичный доступ $h" "$OUT"
+            OUT=$(yc storage bucket update --name "$h" --website-settings '{"index":"index.html","error":"404.html"}' 2>&1) || fail "Веб-сайт $h" "$OUT"
+            if [ "$h" = "$DOMAIN" ]; then rec="$h. 600 ANAME $h.website.yandexcloud.net."; else rec="$h. 600 CNAME $h.website.yandexcloud.net."; fi
+            OUT=$(yc dns zone replace-records --name "$ZONE_NAME" --record "$rec" 2>&1) || fail "DNS-запись $h" "$OUT"
+          done
+
+      - name: Загрузить файлы
+        run: |
+          fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
+          OUT=$(yc iam access-key create --service-account-id "$SA_ID" --description "github deploy-site" --format json 2>&1) || fail "Ключ для загрузки" "$OUT"
+          KEY_ID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const j=JSON.parse(s);process.stdout.write(j.access_key.id)})")
+          echo "KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+          export AWS_ACCESS_KEY_ID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).access_key.key_id))")
+          export AWS_SECRET_ACCESS_KEY=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).secret))")
+          echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+          export AWS_DEFAULT_REGION=ru-central1
+          S3="aws s3 --endpoint-url=https://storage.yandexcloud.net"
+          sleep 5
+          for h in $HOSTS; do
+            if [ "$h" = "$DOMAIN" ]; then
+              src=.; ex=(--exclude ".git/*" --exclude ".github/*" --exclude "backend/*" --exclude "cafes/*" --exclude "README.md" --exclude ".gitignore")
+            else
+              src="cafes/${h%.$DOMAIN}"; ex=()
+            fi
+            OUT=$($S3 sync "$src" "s3://$h" --delete "${ex[@]}" --cache-control "public, max-age=60" 2>&1) || fail "Загрузка $h" "$OUT"
+            echo "$h: загружено"
+          done
+
+      - name: Включить HTTPS
+        run: |
+          if [ "$CERT_STATUS" != "ISSUED" ]; then
+            echo "::warning::Сертификат ещё не выпущен ($CERT_STATUS). Сайт пока по http://$DOMAIN. Перезапустите выкладку через 10–30 минут после того, как у домена появятся DNS-серверы Яндекса."
+            exit 0
+          fi
+          for h in $HOSTS; do
+            OUT=$(yc storage bucket set-https --name "$h" --certificate-id "$CERT_ID" 2>&1) || { echo "::error::HTTPS для $h: $(echo "$OUT" | tr '\n' ' ' | cut -c1-600)"; exit 1; }
+          done
+          echo "HTTPS_ON=1" >> "$GITHUB_ENV"
+          echo "::notice::HTTPS включён"
+
+      - name: Проверка
+        run: |
+          [ "$DELEGATED" = 1 ] || { echo "::notice::Проверка пропущена: домен ещё не делегирован"; exit 0; }
+          sleep 20
+          proto=http; [ "$HTTPS_ON" = 1 ] && proto=https
+          for h in $HOSTS; do
+            C=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "$proto://$h/" || true)
+            echo "::notice::$proto://$h/ → HTTP $C"
+            echo "- $proto://$h/ → $C" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Удалить временный ключ
+        if: always()
+        run: |
+          [ -n "$KEY_ID" ] && yc iam access-key delete "$KEY_ID" >/dev/null 2>&1 || true

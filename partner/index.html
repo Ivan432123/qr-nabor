@@ -519,7 +519,7 @@ function render(d){
   $('whoAv').textContent = p.name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
   $('helloH').textContent = (h<6?'Доброй ночи':h<12?'Доброе утро':h<18?'Добрый день':'Добрый вечер') + ', ' + first;
   $('helloSub').textContent = 'Ваш промокод ' + p.code + ' · выплаты до 10 числа';
-  const link = (CFG.SITE_URL || '').replace(/\/?$/,'/') + '?ref=' + p.code;
+  const link = (CFG.SITE_URL || '').replace(/\/?$/,'/') + p.code;
   $('refLink').textContent = link; $('promoCode').textContent = p.code;
   $('tDue').textContent = rub(s.balance);
   $('tDueNote').textContent = 'начислено всего ' + rub(s.earned) + (s.teamIncome ? ' · с команды ' + rub(s.teamIncome) : '');

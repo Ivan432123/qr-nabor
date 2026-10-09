@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Цифровой набор для кафе</title>
+<style>body{font-family:system-ui,sans-serif;background:#FFF8EE;color:#16282A;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;text-align:center;padding:16px}a{color:#0E4D4A;font-weight:700}</style>
+<script>
+// Короткие ссылки партнёров: qrstol.ru/IVAN12 → qrstol.ru/?ref=IVAN12
+// Работает и на старом адресе GitHub (…/qr-nabor/IVAN12).
+(function () {
+  var parts = location.pathname.replace(/\/+$/, '').split('/');
+  var last = parts.pop() || '';
+  var base = parts.join('/') + '/';
+  if (/^[A-Za-z]{1,8}\d{2,5}$/.test(last)) location.replace(base + '?ref=' + last.toUpperCase() + location.hash);
+  else document.addEventListener('DOMContentLoaded', function () { document.getElementById('home').href = base; });
+})();
+</script></head>
+<body><div><h1 style="font-size:24px">Страница не найдена</h1><p><a id="home" href="/">На главную</a></p></div></body></html>
