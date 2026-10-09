@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { handle } from './app.mjs';
 import { memoryDb } from './db-memory.mjs';
+import { createMail } from './mail.mjs';
 
 const env = { ADMIN_PASSWORD: 'test-admin-password', TOKEN_SECRET: 'test-secret-1234567890' };
 const useYdb = !!process.env.YDB_CONNECTION_STRING;
 let call;
 if (useYdb) {
-  Object.assign(process.env, env);
+  Object.assign(process.env, env, { MAIL_MODE: 'capture' });
   const { handler } = createRequire(import.meta.url)('./index.js');
   call = async (method, path, body, token, ip = '1.1.1.1', query = {}) => {
     const r = await handler({ httpMethod: method, queryStringParameters: { r: path, ...query },
@@ -19,12 +20,20 @@ if (useYdb) {
   };
 } else {
   const db = memoryDb();
+  const mail = createMail({ MAIL_MODE: 'capture' });
   call = async (method, path, body, token, ip = '1.1.1.1', query = {}) => {
-    const r = await handle({ method, path, query, headers: token ? { 'X-Auth': 'Bearer ' + token } : {}, body: body ? JSON.stringify(body) : '', ip }, db, env);
+    const r = await handle({ method, path, query, headers: token ? { 'X-Auth': 'Bearer ' + token } : {}, body: body ? JSON.stringify(body) : '', ip }, db, env, mail);
     return { status: r.status, data: r.body ? JSON.parse(r.body) : null };
   };
 }
 
+// регистрация с кодом из письма
+const lastCode = to => { const m = [...(globalThis.__outbox || [])].reverse().find(x => x.to === to); return m && m.text.match(/\d{6}/)[0]; };
+async function register(body, ip = '1.1.1.1') {
+  const first = await call('POST', '/api/register', body, null, ip);
+  if (first.status !== 200 || !first.data.needCode) return first;
+  return call('POST', '/api/register', { ...body, emailCode: lastCode(body.email) }, null, ip);
+}
 const step = async (name, fn) => { try { await fn(); console.log('✓', name); } catch (e) { console.error('✗', name, '\n', e); process.exit(1); } };
 let token, code, admin, leadId;
 const email = `test${Date.now()}@example.ru`;
@@ -42,7 +51,12 @@ await step('регистрация партнёра', async () => {
   assert.equal(gmail.status, 400, 'зарубежная почта не принимается');
   const foreign = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@mail.ru', phone: '+1 202 555 0100', status: 'ИП', password: '123456', agree: true });
   assert.equal(foreign.status, 400, 'зарубежный телефон не принимается');
-  const r = await call('POST', '/api/register', { name: 'Иван Петров', email, phone: '+7 900 123-45-67', status: 'Самозанятый', source: 'Авито', password: 'secret1', agree: true });
+  const body = { name: 'Иван Петров', email, phone: '+7 900 123-45-67', status: 'Самозанятый', source: 'Авито', password: 'secret1', agree: true };
+  const first = await call('POST', '/api/register', body);
+  assert.equal(first.data.needCode, true, 'сначала должен прийти код');
+  assert.equal((await call('POST', '/api/register', body)).status, 429, 'повторный код — не раньше чем через минуту');
+  assert.equal((await call('POST', '/api/register', { ...body, emailCode: '000000' })).data.error, 'Неверный код');
+  const r = await call('POST', '/api/register', { ...body, emailCode: lastCode(email) });
   assert.equal(r.status, 200, JSON.stringify(r.data)); token = r.data.token; code = r.data.code;
   assert.match(code, /^IVAN\d\d/);
   const dup = await call('POST', '/api/register', { name: 'Иван', email, phone: '+7 900 123-45-67', status: 'ИП', password: 'secret1', agree: true });
@@ -96,7 +110,7 @@ await step('выплата партнёру', async () => {
 await step('команда: 10% с 1-го уровня и 5% со 2-го', async () => {
   const t = Date.now();
   const reg = async (name, mail, phone, pref, ip) => {
-    const r = await call('POST', '/api/register', { name, email: mail, phone, status: 'ИП', password: 'secret1', agree: true, pref }, null, ip);
+    const r = await register({ name, email: mail, phone, status: 'ИП', password: 'secret1', agree: true, pref }, ip);
     assert.equal(r.status, 200, JSON.stringify(r.data)); return r.data;
   };
   const A = await reg('Анна Смирнова', `a${t}@ex.ru`, '+7 901 000-00-01', '', '10.0.0.1');
@@ -130,6 +144,15 @@ await step('новый пароль партнёру', async () => {
   assert.equal(r.status, 200); assert.equal(r.data.password.length, 10);
   assert.equal((await call('POST', '/api/login', { email, password: 'secret1' })).status, 401, 'старый пароль больше не подходит');
   const l = await call('POST', '/api/login', { email, password: r.data.password }); assert.equal(l.status, 200); token = l.data.token;
+});
+await step('смена пароля по коду из письма', async () => {
+  assert.equal((await call('POST', '/api/password/code', { email: 'nobody@mail.ru' })).status, 200, 'не выдаём, есть ли такой email');
+  assert.equal((await call('POST', '/api/password/code', { email })).status, 200);
+  assert.equal((await call('POST', '/api/password/reset', { email, code: '111111', password: 'newpass1' })).status, 400);
+  const r = await call('POST', '/api/password/reset', { email, code: lastCode(email), password: 'newpass1' });
+  assert.equal(r.status, 200, JSON.stringify(r.data)); token = r.data.token;
+  assert.equal((await call('POST', '/api/login', { email, password: 'newpass1' })).status, 200);
+  assert.equal((await call('POST', '/api/password/reset', { email, code: lastCode(email), password: 'again11' })).status, 400, 'код одноразовый');
 });
 await step('удаление записей', async () => {
   let d = (await call('GET', '/api/admin/data', null, admin)).data;

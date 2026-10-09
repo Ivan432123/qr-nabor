@@ -21,17 +21,20 @@ const CORS = {
 };
 const json = (data, status = 200) => ({ status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS }, body: JSON.stringify(data) });
 
-export async function handle(req, db, env) {
+// mail: { enabled: bool, send(to, subject, text) } — отправка писем с кодами (см. mail.mjs)
+export async function handle(req, db, env, mail = { enabled: false }) {
   if (req.method === 'OPTIONS') return { status: 204, headers: CORS, body: '' };
   const path = String(req.path || '').replace(/\/+$/, '');
   const m = req.method;
   try {
     if (!env.TOKEN_SECRET || !env.ADMIN_PASSWORD) return json({ error: 'Не заданы секреты TOKEN_SECRET и ADMIN_PASSWORD' }, 500);
-    if (m === 'GET' && (path === '' || path === '/api')) return json({ ok: true, service: 'nabor-api' });
-    const ctx = { req, db, env, b: parseBody(req.body) };
+    if (m === 'GET' && (path === '' || path === '/api')) return json({ ok: true, service: 'nabor-api', emailCodes: !!mail.enabled });
+    const ctx = { req, db, env, mail, b: parseBody(req.body) };
     if (m === 'POST' && path === '/api/setup') return await setup(ctx);
     if (m === 'POST' && path === '/api/register') return await register(ctx);
     if (m === 'POST' && path === '/api/login') return await login(ctx);
+    if (m === 'POST' && path === '/api/password/code') return await passwordCode(ctx);
+    if (m === 'POST' && path === '/api/password/reset') return await passwordReset(ctx);
     if (m === 'GET' && path === '/api/me') return await me(ctx);
     if (m === 'POST' && path === '/api/click') return await click(ctx);
     if (m === 'POST' && path === '/api/lead') return await lead(ctx);
@@ -42,6 +45,7 @@ export async function handle(req, db, env) {
     if (m === 'POST' && path === '/api/admin/payout') return await adminPayout(ctx);
     if (m === 'POST' && path === '/api/admin/delete') return await adminDelete(ctx);
     if (m === 'POST' && path === '/api/admin/reset-password') return await adminResetPassword(ctx);
+    if (m === 'POST' && path === '/api/admin/test-mail') return await adminTestMail(ctx);
     return json({ error: 'Не найдено' }, 404);
   } catch (e) {
     console.error(e);
@@ -171,6 +175,17 @@ async function register(ctx) {
   if (await db.countPartnersByIp(ih) >= 5) return json({ error: 'Слишком много регистраций с этого устройства сегодня' }, 429);
   if (await db.partnerByEmail(email)) return json({ error: 'Этот email уже зарегистрирован — войдите' }, 409);
 
+  // подтверждение почты: сначала отправляем код, регистрация — со вторым запросом, где код указан
+  if (ctx.mail.enabled) {
+    if (!b.emailCode) {
+      const sent = await sendCode(ctx, email, 'reg', 'Код подтверждения регистрации',
+        c => `Ваш код для регистрации в партнёрской программе «Цифровой набор для кафе»: ${c}\n\nКод действует 15 минут. Если вы не регистрировались — просто удалите это письмо.`);
+      return sent.error ? json(sent, sent.status) : json({ needCode: true, email });
+    }
+    const v = await verifyEmailCode(ctx, email, 'reg', b.emailCode);
+    if (v) return json({ error: v }, 400);
+  }
+
   let referrer_id = '';
   const inviteCode = clean(b.pref, 20).toUpperCase();
   if (inviteCode) {
@@ -190,6 +205,56 @@ async function register(ctx) {
   const id = newId();
   await db.insertPartner({ id, name, email, phone, status, source, code, pass_hash: await hashPassword(password, salt), salt, ip_hash: ih, created_at: now(), referrer_id });
   return json({ token: await signToken({ role: 'partner', id }, env), code, invited: !!referrer_id });
+}
+
+/* ---------- коды на почту ---------- */
+const CODE_TTL = 15 * 60e3;
+const codeHash = (env, email, purpose, code) => crypto.subtle.digest('SHA-256', enc.encode([purpose, email, String(code).trim(), env.TOKEN_SECRET].join('|'))).then(hex);
+async function sendCode(ctx, email, purpose, subject, textFn) {
+  const { db, env, mail } = ctx;
+  const prev = await db.getCode(email, purpose);
+  if (prev && Date.now() - Date.parse(prev.sent_at) < 60e3) return { error: 'Код уже отправлен. Повторно — через минуту.', status: 429 };
+  const ih = await ipHash(ctx);
+  if (await db.countCodesByIp(ih) >= 10) return { error: 'Слишком много писем сегодня. Напишите нам.', status: 429 };
+  const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+  await db.putCode({ email, purpose, code_hash: await codeHash(env, email, purpose, code), expires: new Date(Date.now() + CODE_TTL).toISOString(), tries: 0, sent_at: now(), ip_hash: ih });
+  try { await mail.send(email, subject, textFn(code)); }
+  catch (e) { console.error('mail', e); return { error: 'Не получилось отправить письмо. Проверьте адрес или попробуйте позже.', status: 502 }; }
+  return { ok: true };
+}
+async function verifyEmailCode(ctx, email, purpose, code) {
+  const { db, env } = ctx;
+  const c = await db.getCode(email, purpose);
+  if (!c || Date.parse(c.expires) < Date.now()) return 'Код устарел — запросите новый';
+  if (c.tries >= 5) return 'Слишком много попыток — запросите новый код';
+  if (!safeEqual(await codeHash(env, email, purpose, code), c.code_hash)) { await db.bumpCodeTries(email, purpose, c.tries + 1); return 'Неверный код'; }
+  await db.deleteCode(email, purpose);
+  return '';
+}
+// Забыли пароль: код на почту → новый пароль. Отвечаем одинаково, есть такой email или нет.
+async function passwordCode(ctx) {
+  const { b, db, mail } = ctx;
+  if (!mail.enabled) return json({ error: 'manual' }, 400);
+  const email = clean(b.email, 120).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Проверьте email' }, 400);
+  if (await db.partnerByEmail(email)) {
+    const sent = await sendCode(ctx, email, 'reset', 'Код для смены пароля',
+      c => `Код для смены пароля в кабинете партнёра: ${c}\n\nКод действует 15 минут. Если вы не запрашивали смену пароля — просто удалите это письмо, пароль останется прежним.`);
+    if (sent.error && sent.status === 429) return json(sent, 429);
+  }
+  return json({ ok: true });
+}
+async function passwordReset(ctx) {
+  const { b, db, env, mail } = ctx;
+  if (!mail.enabled) return json({ error: 'manual' }, 400);
+  const email = clean(b.email, 120).toLowerCase(), password = String(b.password || '');
+  if (password.length < 6) return json({ error: 'Пароль — не короче 6 символов' }, 400);
+  const p = await db.partnerByEmail(email);
+  const v = await verifyEmailCode(ctx, email, 'reset', b.code);
+  if (v || !p) return json({ error: v || 'Неверный код' }, 400);
+  const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+  await db.setPassword(p.id, await hashPassword(password, salt), salt);
+  return json({ token: await signToken({ role: 'partner', id: p.id }, env) });
 }
 
 async function login({ b, db, env }) {
@@ -342,4 +407,13 @@ async function adminResetPassword(ctx) {
   const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
   await db.setPassword(p.id, await hashPassword(password, salt), salt);
   return json({ ok: true, password, email: p.email, phone: p.phone, name: p.name });
+}
+
+// Проверка почты: письмо самому себе (на адрес отправителя)
+async function adminTestMail(ctx) {
+  if (!(await isAdmin(ctx))) return json({ error: 'Войдите заново' }, 401);
+  if (!ctx.mail.enabled) return json({ ok: false, enabled: false });
+  try { await ctx.mail.send(ctx.env.SMTP_USER || 'test@local', 'Проверка почты партнёрской программы', 'Почта работает: коды подтверждения будут приходить партнёрам.'); }
+  catch (e) { return json({ ok: false, enabled: true, error: String(e && e.message || e).slice(0, 300) }); }
+  return json({ ok: true, enabled: true });
 }

@@ -3,10 +3,13 @@
   "private": true,
   "description": "Сервер партнёрской программы «Цифровой набор для кафе» (Яндекс Cloud Functions + YDB)",
   "main": "index.js",
-  "scripts": { "test": "node test.mjs" },
+  "scripts": {
+    "test": "node test.mjs"
+  },
   "dependencies": {
     "@ydbjs/auth": "^6.3.1",
     "@ydbjs/core": "^6.3.1",
-    "@ydbjs/query": "^6.3.0"
+    "@ydbjs/query": "^6.3.0",
+    "nodemailer": "^7.0.13"
   }
 }

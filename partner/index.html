@@ -142,6 +142,9 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
 @media (max-width:600px){.hide-m{display:none}.show-m{display:block}}
 .team-h{margin:22px 0 10px;font-size:18px}
 .hint{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.4}
+.codebox{background:var(--soft,#DCEEEA);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:15px}
+.linkbtn{background:none;border:0;padding:4px 0;color:var(--brand,#0E4D4A);font-weight:700;font-size:14px;cursor:pointer;text-decoration:underline;align-self:flex-start;font-family:inherit}
+#xStep2[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -235,6 +238,11 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <div><label for="rStatus">Статус</label><select id="rStatus"><option>Самозанятый</option><option>ИП</option></select></div>
           <div><label for="rSrc">Где будете рекомендовать</label><select id="rSrc"><option>Знакомые владельцы заведений</option><option>Свой сайт или блог</option><option>Сообщества ВК и MAX</option><option>Реклама с маркировкой</option></select></div>
           <label class="check"><input type="checkbox" id="rAgree"><span>Принимаю условия партнёрской оферты</span></label>
+          <div class="codebox" id="codeBox" hidden>
+            <p style="margin:0">Мы отправили код на <b id="codeTo"></b>. Если письма нет пару минут — проверьте папку «Спам».</p>
+            <div><label for="rCode">Код из письма</label><input id="rCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 цифр"></div>
+            <button type="button" class="linkbtn" id="resendBtn">Отправить код ещё раз</button>
+          </div>
           <p class="err" id="regErr" hidden></p>
           <button class="btn dark" type="submit" id="regBtn">Зарегистрироваться</button>
         </form>
@@ -243,7 +251,19 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <div><label for="lPass">Пароль</label><input type="password" id="lPass" autocomplete="current-password"></div>
           <p class="err" id="loginErr" hidden></p>
           <button class="btn dark" type="submit" id="loginBtn">Войти</button>
-          <p class="note" id="forgot">Забыли пароль? Напишите в MAX или позвоните: <b id="supPhone" style="user-select:all;white-space:nowrap"></b>. Назовите email, с которым регистрировались, — пришлём новый пароль.</p>
+          <button type="button" class="linkbtn" id="forgotBtn">Забыли пароль?</button>
+          <p class="note" id="forgot" hidden>Напишите в MAX или позвоните: <b id="supPhone" style="user-select:all;white-space:nowrap"></b>. Назовите email, с которым регистрировались, — пришлём новый пароль.</p>
+        </form>
+        <form id="resetForm" novalidate hidden>
+          <p style="margin:0">Пришлём код на почту, с которой вы регистрировались.</p>
+          <div><label for="xEmail">Email</label><input type="email" id="xEmail" autocomplete="email"></div>
+          <div id="xStep2" hidden style="display:flex;flex-direction:column;gap:14px">
+            <div><label for="xCode">Код из письма</label><input id="xCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 цифр"></div>
+            <div><label for="xPass">Новый пароль</label><input type="password" id="xPass" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
+          </div>
+          <p class="err" id="resetErr" hidden></p>
+          <button class="btn dark" type="submit" id="resetBtn">Получить код</button>
+          <button type="button" class="linkbtn" id="backToLogin">← Вернуться ко входу</button>
         </form>
       </div>
     </div>
@@ -415,7 +435,7 @@ function getInvite(){ try{ const v = JSON.parse(localStorage.getItem(INV_KEY) ||
 /* --- регистрация / вход --- */
 function mode(m){
   const login = m === 'login';
-  $('regForm').hidden = login; $('loginForm').hidden = !login;
+  $('regForm').hidden = login; $('loginForm').hidden = !login; $('resetForm').hidden = true;
   $('swReg').setAttribute('aria-selected', !login); $('swLogin').setAttribute('aria-selected', login);
   $('regTitle').textContent = login ? 'Вход в кабинет' : 'Регистрация';
 }
@@ -423,15 +443,50 @@ $('swReg').onclick = () => mode('reg'); $('swLogin').onclick = () => mode('login
 
 $('supPhone').textContent = CFG.PHONE || '';
 function showErr(id, msg){ $(id).textContent = msg; $(id).hidden = false; }
-$('regForm').addEventListener('submit', async e => {
-  e.preventDefault(); $('regErr').hidden = true;
+// Регистрация в два шага: данные → код из письма (если на сервере включена почта)
+let codeStage = false;
+const regBody = withCode => ({ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value, agree:true, pref: getInvite(), ...(withCode ? { emailCode: $('rCode').value.trim() } : {}) });
+const regLabel = () => codeStage ? 'Подтвердить и зарегистрироваться' : 'Зарегистрироваться';
+async function submitReg(withCode){
+  $('regErr').hidden = true;
   if (!$('rAgree').checked) return showErr('regErr', 'Примите условия оферты');
-  const btn = $('regBtn'); btn.disabled = true; btn.textContent = 'Создаю кабинет…';
+  if (withCode && !/^\d{6}$/.test($('rCode').value.trim())) return showErr('regErr', 'Введите 6 цифр из письма');
+  const btn = $('regBtn'); btn.disabled = true; btn.textContent = withCode ? 'Создаю кабинет…' : 'Отправляю…';
   try{
-    const d = await api('/api/register', { body:{ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value, agree:true, pref: getInvite() } });
-    memToken = d.token; setToken(d.token); await openCabinet(); toast('Готово! Ваша ссылка и промокод созданы');
+    const d = await api('/api/register', { body: regBody(withCode) });
+    if (d.needCode){
+      codeStage = true; $('codeBox').hidden = false; $('codeTo').textContent = d.email; $('rCode').value = ''; $('rCode').focus();
+      toast('Код отправлен на почту');
+    } else { memToken = d.token; setToken(d.token); await openCabinet(); toast('Готово! Ваша ссылка и промокод созданы'); }
   }catch(err){ showErr('regErr', err.message); }
-  btn.disabled = false; btn.textContent = 'Зарегистрироваться';
+  btn.disabled = false; btn.textContent = regLabel();
+}
+$('regForm').addEventListener('submit', e => { e.preventDefault(); submitReg(codeStage); });
+$('resendBtn').onclick = () => submitReg(false);
+// если поменяли почту после отправки кода — начинаем заново
+$('rEmail').addEventListener('input', () => { if (codeStage){ codeStage = false; $('codeBox').hidden = true; $('regBtn').textContent = regLabel(); } });
+
+/* --- забыли пароль --- */
+let resetStage = false;
+$('forgotBtn').onclick = () => { $('loginForm').hidden = true; $('resetForm').hidden = false; $('regTitle').textContent = 'Новый пароль'; $('xEmail').value = $('lEmail').value; resetStage = false; $('xStep2').hidden = true; $('resetBtn').textContent = 'Получить код'; $('resetErr').hidden = true; };
+$('backToLogin').onclick = () => mode('login');
+$('resetForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('resetErr').hidden = true;
+  const btn = $('resetBtn'); btn.disabled = true;
+  try{
+    if (!resetStage){
+      await api('/api/password/code', { body:{ email: $('xEmail').value } });
+      resetStage = true; $('xStep2').hidden = false; $('xCode').focus();
+      toast('Если такой email зарегистрирован, код уже в почте');
+    } else {
+      const d = await api('/api/password/reset', { body:{ email: $('xEmail').value, code: $('xCode').value.trim(), password: $('xPass').value } });
+      memToken = d.token; setToken(d.token); await openCabinet(); toast('Пароль изменён');
+    }
+  }catch(err){
+    if (err.message === 'manual'){ mode('login'); $('forgot').hidden = false; $('forgotBtn').hidden = true; }
+    else showErr('resetErr', err.message);
+  }
+  btn.disabled = false; btn.textContent = resetStage ? 'Сохранить пароль' : 'Получить код';
 });
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault(); $('loginErr').hidden = true;

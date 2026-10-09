@@ -51,6 +51,7 @@ export const db = {
       `CREATE TABLE IF NOT EXISTS partners (id Utf8 NOT NULL, name Utf8, email Utf8, phone Utf8, status Utf8, source Utf8, code Utf8, pass_hash Utf8, salt Utf8, ip_hash Utf8, created_at Utf8, PRIMARY KEY (id))`,
       `CREATE TABLE IF NOT EXISTS clicks (partner_id Utf8 NOT NULL, day Utf8 NOT NULL, ip_hash Utf8 NOT NULL, PRIMARY KEY (partner_id, day, ip_hash))`,
       `CREATE TABLE IF NOT EXISTS leads (id Utf8 NOT NULL, created_at Utf8, name Utf8, cafe Utf8, phone Utf8, plan Utf8, partner_id Utf8, status Utf8, months Int32, paid_at Utf8, ip_hash Utf8, PRIMARY KEY (id))`,
+      `CREATE TABLE IF NOT EXISTS codes (email Utf8 NOT NULL, purpose Utf8 NOT NULL, code_hash Utf8, expires Utf8, tries Int32, sent_at Utf8, ip_hash Utf8, PRIMARY KEY (email, purpose))`,
       `CREATE TABLE IF NOT EXISTS payouts (id Utf8 NOT NULL, partner_id Utf8, amount Int32, note Utf8, check_received Int32, created_at Utf8, PRIMARY KEY (id))`
     ];
     for (const q of ddl) await sql([q]);
@@ -92,6 +93,14 @@ export const db = {
       VALUES (${x.id}, ${x.partner_id}, ${x.amount}, ${x.note}, ${x.check_received}, ${x.created_at})`;
   },
   async payoutsByPartner(pid) { return rows`SELECT amount, note, check_received, created_at FROM payouts WHERE partner_id = ${pid}`; },
+  async getCode(email, purpose) { return (await rows`SELECT code_hash, expires, tries, sent_at FROM codes WHERE email = ${email} AND purpose = ${purpose}`)[0] || null; },
+  async putCode(c) {
+    await exec`UPSERT INTO codes (email, purpose, code_hash, expires, tries, sent_at, ip_hash)
+      VALUES (${c.email}, ${c.purpose}, ${c.code_hash}, ${c.expires}, ${c.tries}, ${c.sent_at}, ${c.ip_hash})`;
+  },
+  async bumpCodeTries(email, purpose, tries) { await exec`UPDATE codes SET tries = ${tries} WHERE email = ${email} AND purpose = ${purpose}`; },
+  async deleteCode(email, purpose) { await exec`DELETE FROM codes WHERE email = ${email} AND purpose = ${purpose}`; },
+  async countCodesByIp(ih) { return (await rows`SELECT COUNT(*) AS n FROM codes WHERE ip_hash = ${ih}`)[0]?.n || 0; },
   async setPassword(id, hash, salt) { await exec`UPDATE partners SET pass_hash = ${hash}, salt = ${salt} WHERE id = ${id}`; },
   async deleteLead(id) { await exec`DELETE FROM leads WHERE id = ${id}`; },
   async deletePayout(id) { await exec`DELETE FROM payouts WHERE id = ${id}`; },

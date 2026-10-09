@@ -1,6 +1,6 @@
 // Хранилище в памяти — только для проверок.
 export function memoryDb() {
-  const t = { partners: [], clicks: [], leads: [], payouts: [] };
+  const t = { partners: [], clicks: [], leads: [], payouts: [], codes: [] };
   const copy = x => x.map(o => ({ ...o }));
   const one = x => (x ? { ...x } : null);
   const groupCount = (arr, key) => Object.entries(arr.reduce((m, r) => ((m[r[key]] = (m[r[key]] || 0) + 1), m), {})).map(([k, n]) => ({ [key]: k, n }));
@@ -24,6 +24,11 @@ export function memoryDb() {
     async updateLead(id, f) { Object.assign(t.leads.find(l => l.id === id), f); },
     async insertPayout(x) { t.payouts.push({ ...x }); },
     async payoutsByPartner(pid) { return copy(t.payouts.filter(x => x.partner_id === pid)); },
+    async getCode(email, purpose) { return one(t.codes.find(c => c.email === email && c.purpose === purpose)); },
+    async putCode(c) { t.codes = t.codes.filter(x => !(x.email === c.email && x.purpose === c.purpose)); t.codes.push({ ...c }); },
+    async bumpCodeTries(email, purpose, tries) { const c = t.codes.find(x => x.email === email && x.purpose === purpose); if (c) c.tries = tries; },
+    async deleteCode(email, purpose) { t.codes = t.codes.filter(x => !(x.email === email && x.purpose === purpose)); },
+    async countCodesByIp(ih) { return t.codes.filter(c => c.ip_hash === ih).length; },
     async setPassword(id, hash, salt) { Object.assign(t.partners.find(p => p.id === id), { pass_hash: hash, salt }); },
     async deleteLead(id) { t.leads = t.leads.filter(l => l.id !== id); },
     async deletePayout(id) { t.payouts = t.payouts.filter(x => x.id !== id); },

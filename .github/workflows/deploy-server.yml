@@ -59,6 +59,8 @@ jobs:
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
     steps:
       - uses: actions/checkout@v4
 
@@ -141,7 +143,9 @@ jobs:
       - name: Выложить новую версию
         working-directory: backend
         run: |
-          zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs package.json package-lock.json
+          zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs mail.mjs package.json package-lock.json
+          MAIL_ENV=()
+          if [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then MAIL_ENV=(--environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS"); echo "::notice::Коды на почту включены ($SMTP_USER)"; else echo "::notice::Коды на почту выключены: нет секретов SMTP_USER и SMTP_PASS"; fi
           OUT=$(yc serverless function version create \
             --function-name nabor-api \
             --runtime nodejs22 \
@@ -152,7 +156,8 @@ jobs:
             --source-path "$RUNNER_TEMP/fn.zip" \
             --environment "YDB_CONNECTION_STRING=$YDB_EP" \
             --environment "ADMIN_PASSWORD=$ADMIN_PASSWORD" \
-            --environment "TOKEN_SECRET=$TOKEN_SECRET" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+            --environment "TOKEN_SECRET=$TOKEN_SECRET" \
+            "${MAIL_ENV[@]}" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" -e "${SMTP_PASS:-@@none@@}" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
           echo "Версия выложена"
 
       - name: Создать таблицы и проверить сервер
@@ -178,6 +183,10 @@ jobs:
           R=$(curl -sS -m 30 -H "X-Auth: Bearer $T" "$URL?r=/api/admin/data" 2>&1)
           echo "$R" | grep -q '"leads"' || { echo "::error::Данные админки: $(echo "$R" | cut -c1-600)"; exit 1; }
           echo "::notice::Сервер, база и вход в админку работают"
+          M=$(curl -sS -m 40 -X POST -H "X-Auth: Bearer $T" "$URL?r=/api/admin/test-mail" 2>&1)
+          if echo "$M" | grep -q '"enabled":false'; then echo "::notice::Коды на почту выключены — партнёры регистрируются без подтверждения";
+          elif echo "$M" | grep -q '"ok":true'; then echo "::notice::Почта работает: тестовое письмо отправлено на $SMTP_USER";
+          else echo "::error::Почта не работает: $(echo "$M" | cut -c1-500)"; exit 1; fi
           echo "API_URL=$URL" >> "$GITHUB_ENV"
 
       - name: Записать адрес сервера на сайт
