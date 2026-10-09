@@ -45,7 +45,7 @@ jobs:
         run: |
           for i in $(seq 1 30); do node -e "require('net').connect(2136,'localhost').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" && break; sleep 2; done
           sleep 5
-          OUT=$(timeout 120 node test.mjs 2>&1); CODE=$?
+          OUT=$(timeout 120 node test.mjs 2>&1) && CODE=0 || CODE=$?
           echo "$OUT"
           [ $CODE -eq 0 ] || { echo "::error::YDB-проверки: $(echo "$OUT" | tail -15 | tr '\n' ' ' | cut -c1-900)"; exit 1; }
 
