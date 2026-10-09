@@ -102,6 +102,21 @@ input,select{width:100%;min-height:50px;border:1px solid var(--line);border-radi
 .done pre{white-space:pre-wrap;font-family:var(--body);font-size:15px;margin:0;background:#fff;border-radius:12px;padding:12px;border:1px solid var(--line)}
 .contacts{font-weight:800;user-select:all}
 footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:center}
+.partner{background:var(--sun);border-radius:30px;padding:36px;display:flex;flex-direction:column;gap:22px;position:relative;overflow:hidden}
+.partner::after{content:"";position:absolute;width:220px;height:220px;border-radius:999px;background:var(--coral);right:-80px;top:-90px;opacity:.9}
+.partner > *{position:relative;z-index:1}
+.partner .eyebrow{color:var(--brand)}
+.partner h2{font-size:clamp(26px,4vw,38px);max-width:22ch;margin:0}
+.partner > p{margin:0;max-width:56ch;font-size:18px}
+.p-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.p-stat{background:var(--bg);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:4px}
+.p-stat b{font-family:var(--display);font-size:26px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+.p-stat span{font-size:15px;color:var(--muted)}
+.p-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 20px;font-weight:700;font-size:15px}
+.p-list li::before{content:"✓ ";color:var(--brand)}
+.hero-partner{color:#D2E7E3;font-size:15px;font-weight:700}
+.hero-partner a{color:var(--sun)}
+@media (max-width:600px){.hero .b2{display:none}.hero .b1{width:220px;height:220px;right:-90px;top:-100px}}
 @media (prefers-reduced-motion: no-preference){.phone{animation:float 6s ease-in-out infinite}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 </style>
@@ -118,6 +133,7 @@ footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:cent
         <a class="btn sun" href="#zayavka">Оставить заявку</a>
         <a class="btn ghost" href="#pakety">Пакеты и цены</a>
       </div>
+      <div class="hero-partner">Знаете владельцев кафе? <a href="#partneram">Зарабатывайте как партнёр →</a></div>
     </div>
     <div class="phone" aria-hidden="true">
       <div class="screen">
@@ -236,6 +252,29 @@ footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:cent
           <div>MAX и телефон: <span class="contacts" id="contacts"></span></div>
         </div>
       </form>
+    </div>
+  </section>
+
+  <section class="wrap" id="partneram" style="padding-top:0">
+    <div class="partner">
+      <div>
+        <div class="eyebrow">Партнёрская программа</div>
+        <h2>Рекомендуйте набор — получайте половину</h2>
+      </div>
+      <p>Знаете владельцев кафе, кофеен или столовых? Зарегистрируйтесь партнёром, получите свою ссылку и промокод. Когда заведение подключится по ним, вы получите 50% от стоимости набора и 20% от поддержки каждый месяц в течение двух лет.</p>
+      <div class="p-stats">
+        <div class="p-stat"><b>до 2 500 ₽</b><span>за каждое подключённое заведение</span></div>
+        <div class="p-stat"><b>до 300 ₽/мес</b><span>с каждого клиента, 24 месяца</span></div>
+        <div class="p-stat"><b>+2 000 ₽</b><span>бонус за каждое 5-е заведение</span></div>
+      </div>
+      <ul class="p-list">
+        <li>Регистрация за минуту</li>
+        <li>Личный кабинет со статистикой</li>
+        <li>Готовые тексты и картинки</li>
+        <li>Для самозанятых и ИП</li>
+        <li>Выплаты раз в месяц</li>
+      </ul>
+      <div class="cta-row"><a class="btn dark" href="partner/">Стать партнёром</a><a class="btn" href="partner/" style="border:2px solid var(--brand);color:var(--brand)">Войти в кабинет</a></div>
     </div>
   </section>
 </main>
