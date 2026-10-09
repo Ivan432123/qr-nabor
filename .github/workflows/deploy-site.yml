@@ -14,6 +14,9 @@ on:
       - '.github/workflows/check-server.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: deploy-site
   cancel-in-progress: false
@@ -157,6 +160,27 @@ jobs:
             echo "::notice::$proto://$h/ → HTTP $C"
             echo "- $proto://$h/ → $C" >> "$GITHUB_STEP_SUMMARY"
           done
+
+      - name: Переключить сайт на qrstol.ru
+        if: env.HTTPS_ON == '1'
+        run: |
+          C=$(curl -s -o /dev/null -w '%{http_code}' -m 20 "https://$DOMAIN/" || true)
+          [ "$C" = 200 ] || { echo "::warning::https://$DOMAIN/ пока отвечает $C — адреса на сайте не переключаю"; exit 0; }
+          grep -q "SITE_URL: 'https://$DOMAIN/'" config.js && { echo "Адреса уже переключены"; exit 0; }
+          sed -i -E "s#^  SITE_URL: '[^']*',#  SITE_URL: 'https://$DOMAIN/',#; s#^  DEMO_URL: '[^']*'#  DEMO_URL: 'https://zerno.$DOMAIN/\#5'#" config.js
+          grep -n "SITE_URL\|DEMO_URL" config.js | head -3
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Сайт переехал на https://$DOMAIN/" config.js
+          git pull --rebase -q && git push
+          OUT=$(yc iam access-key create --service-account-id "$SA_ID" --description "github config" --format json)
+          K2=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).access_key.id))")
+          export AWS_ACCESS_KEY_ID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).access_key.key_id))")
+          export AWS_SECRET_ACCESS_KEY=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).secret))")
+          echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+          AWS_DEFAULT_REGION=ru-central1 aws s3 --endpoint-url=https://storage.yandexcloud.net cp config.js "s3://$DOMAIN/config.js" --cache-control "public, max-age=60"
+          yc iam access-key delete "$K2" >/dev/null 2>&1 || true
+          echo "::notice::Сайт переключён на https://$DOMAIN/ — старые адреса на GitHub перенаправляют сюда"
 
       - name: Удалить временный ключ
         if: always()

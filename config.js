@@ -16,3 +16,12 @@ window.naborApi = function (path) {
   var parts = String(path).split('?');
   return base + '?r=' + encodeURIComponent(parts[0]) + (parts[1] ? '&' + parts[1] : '');
 };
+
+// Когда сайт переехал на свой домен — старые адреса на GitHub ведут туда же (…/qr-nabor/partner/ → qrstol.ru/partner/)
+(function () {
+  var site = String(window.NABOR_CONFIG.SITE_URL || '');
+  if (/github\.io$/.test(location.hostname) && site.indexOf('github.io') === -1 && site) {
+    var rest = location.pathname.replace(/^\/qr-nabor\/?/, '');
+    location.replace(site.replace(/\/?$/, '/') + rest + location.search + location.hash);
+  }
+})();
