@@ -4,7 +4,7 @@
 
 export const RATES = {
   setup: { start: 1500, standard: 2500 },   // 50% от набора
-  monthly: { start: 400, standard: 300 },   // 20% от поддержки: «Старт» 2 000 ₽/мес, «Стандарт» 1 500 ₽/мес
+  monthly: { start: 400, standard: 400 },   // 20% от поддержки: 2 000 ₽/мес у обоих пакетов
   maxMonths: 24,
   bonusEvery: 5,
   bonus: 2000,

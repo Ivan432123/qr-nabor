@@ -94,18 +94,18 @@ await step('админка видит заявку и партнёра', async (
   assert.equal(l.status, 'new'); assert.equal(l.partnerName, 'Иван Петров');
   const p = d.partners.find(x => x.code === code); assert.equal(p.clicks, 2); assert.equal(p.leads, 1); assert.equal(p.balance, 0);
 });
-await step('оплата: 2500 за набор + 2 мес × 300', async () => {
+await step('оплата: 2500 за набор + 2 мес × 400', async () => {
   const r = await call('POST', '/api/admin/lead', { id: leadId, status: 'paid', plan: 'standard', months: '2' }, admin); assert.equal(r.status, 200, JSON.stringify(r.data));
   const me = (await call('GET', '/api/me', null, token)).data;
-  assert.equal(me.stats.earned, 3100); assert.equal(me.stats.balance, 3100); assert.equal(me.stats.paidCount, 1); assert.equal(me.leads[0].status, 'paid');
+  assert.equal(me.stats.earned, 3300); assert.equal(me.stats.balance, 3300); assert.equal(me.stats.paidCount, 1); assert.equal(me.leads[0].status, 'paid');
 });
 await step('выплата партнёру', async () => {
   assert.equal((await call('POST', '/api/admin/payout', { partner: code, amount: 0 }, admin)).status, 400);
-  const r = await call('POST', '/api/admin/payout', { partner: code.toLowerCase(), amount: '3100', note: 'СБП', check: true }, admin); assert.equal(r.status, 200);
+  const r = await call('POST', '/api/admin/payout', { partner: code.toLowerCase(), amount: '3300', note: 'СБП', check: true }, admin); assert.equal(r.status, 200);
   const me = (await call('GET', '/api/me', null, token)).data;
-  assert.equal(me.stats.paidOut, 3100); assert.equal(me.stats.balance, 0); assert.equal(me.payouts[0].check, true);
+  assert.equal(me.stats.paidOut, 3300); assert.equal(me.stats.balance, 0); assert.equal(me.payouts[0].check, true);
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
-  assert.equal(d.payouts.find(x => x.partner === code).amount, 3100);
+  assert.equal(d.payouts.find(x => x.partner === code).amount, 3300);
 });
 await step('команда: 10% с 1-го уровня и 5% со 2-го', async () => {
   const t = Date.now();
@@ -126,14 +126,14 @@ await step('команда: 10% с 1-го уровня и 5% со 2-го', async
   const meA = (await call('GET', '/api/me', null, A.token)).data;
   const meB = (await call('GET', '/api/me', null, B.token)).data;
   const meC = (await call('GET', '/api/me', null, C.token)).data;
-  assert.equal(meC.stats.earned, 3100);
-  assert.equal(meB.stats.teamIncome, 310); assert.equal(meB.stats.earned, 310); assert.equal(meB.team.invitedBy, 'Анна С.');
+  assert.equal(meC.stats.earned, 3300);
+  assert.equal(meB.stats.teamIncome, 330); assert.equal(meB.stats.earned, 330); assert.equal(meB.team.invitedBy, 'Анна С.');
   assert.equal(meB.team.level1.length, 1); assert.equal(meB.team.level1[0].name, 'Вера Л.');
-  assert.equal(meA.stats.teamIncome, 155); assert.equal(meA.stats.balance, 155);
+  assert.equal(meA.stats.teamIncome, 165); assert.equal(meA.stats.balance, 165);
   assert.equal(meA.team.level1.length, 1); assert.equal(meA.team.level2.length, 1); assert.equal(meA.team.level2[0].via, 'Борис К.');
   const d2 = (await call('GET', '/api/admin/data', null, admin)).data;
   const pa = d2.partners.find(x => x.code === A.code), pb = d2.partners.find(x => x.code === B.code);
-  assert.equal(pb.referrer, A.code); assert.equal(pa.teamIncome, 155); assert.equal(pa.team1, 1); assert.equal(pa.team2, 1);
+  assert.equal(pb.referrer, A.code); assert.equal(pa.teamIncome, 165); assert.equal(pa.team1, 1); assert.equal(pa.team2, 1);
   assert.equal(d2.partners.find(x => x.code === self.code).referrer, null);
 });
 await step('новый пароль партнёру', async () => {
@@ -160,7 +160,7 @@ await step('удаление записей', async () => {
   const x = d.payouts.find(y => y.partner === code);
   assert.equal((await call('POST', '/api/admin/delete', { type: 'payout', id: x.id }, token)).status, 401, 'партнёр не может удалять');
   assert.equal((await call('POST', '/api/admin/delete', { type: 'payout', id: x.id }, admin)).status, 200);
-  assert.equal((await call('GET', '/api/me', null, token)).data.stats.balance, 3100);
+  assert.equal((await call('GET', '/api/me', null, token)).data.stats.balance, 3300);
   assert.equal((await call('POST', '/api/admin/delete', { type: 'partner', id: p.id }, admin)).status, 200);
   d = (await call('GET', '/api/admin/data', null, admin)).data;
   assert.ok(!d.partners.some(y => y.code === code), 'партнёр не удалён');
