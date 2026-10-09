@@ -23,10 +23,10 @@ jobs:
       - name: Сайты в хранилище (до подключения домена)
         run: |
           for h in qrstol.ru zerno.qrstol.ru; do
-            C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "https://$h.website.yandexcloud.net/" || true)
+            C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "http://$h.website.yandexcloud.net/" || true)
             echo "::notice::$h.website.yandexcloud.net → HTTP $C, $(grep -o '<title>[^<]*' /tmp/p.html | head -1)"
           done
-          C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "https://qrstol.ru.website.yandexcloud.net/IVAN12" || true)
+          C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "http://qrstol.ru.website.yandexcloud.net/IVAN12" || true)
           echo "::notice::короткая ссылка /IVAN12 → HTTP $C, $(grep -o "ref=' + last" /tmp/p.html | head -1)"
           NS=$(dig +short NS qrstol.ru @8.8.8.8 | tr '\n' ' '); echo "::notice::NS qrstol.ru: ${NS:-нет}"
           W=$(whois qrstol.ru 2>/dev/null | grep -iE 'nserver|state|created' | tr '\n' ' ' | cut -c1-300); echo "::notice::whois: ${W:-нет данных}"
