@@ -54,17 +54,21 @@ export const db = {
       `CREATE TABLE IF NOT EXISTS payouts (id Utf8 NOT NULL, partner_id Utf8, amount Int32, note Utf8, check_received Int32, created_at Utf8, PRIMARY KEY (id))`
     ];
     for (const q of ddl) await sql([q]);
+    // новые столбцы для уже созданных таблиц (повторно — пропускаем)
+    for (const q of ['ALTER TABLE partners ADD COLUMN referrer_id Utf8']) {
+      try { await sql([q]); } catch (e) { if (!/exist|duplicate|already/i.test(String(e && e.message))) throw e; }
+    }
   },
 
   async countPartnersByIp(ih) { return (await rows`SELECT COUNT(*) AS n FROM partners WHERE ip_hash = ${ih}`)[0]?.n || 0; },
   async partnerByEmail(email) { return (await rows`SELECT id, pass_hash, salt FROM partners WHERE email = ${email} LIMIT 1`)[0] || null; },
-  async partnerByCode(code) { return (await rows`SELECT id, code, name FROM partners WHERE code = ${code} LIMIT 1`)[0] || null; },
+  async partnerByCode(code) { return (await rows`SELECT id, code, name, email, phone FROM partners WHERE code = ${code} LIMIT 1`)[0] || null; },
   async partnerById(id) { return (await rows`SELECT id, name, email, phone, status, code, created_at FROM partners WHERE id = ${id}`)[0] || null; },
   async insertPartner(p) {
-    await exec`UPSERT INTO partners (id, name, email, phone, status, source, code, pass_hash, salt, ip_hash, created_at)
-      VALUES (${p.id}, ${p.name}, ${p.email}, ${p.phone}, ${p.status}, ${p.source}, ${p.code}, ${p.pass_hash}, ${p.salt}, ${p.ip_hash}, ${p.created_at})`;
+    await exec`UPSERT INTO partners (id, name, email, phone, status, source, code, pass_hash, salt, ip_hash, created_at, referrer_id)
+      VALUES (${p.id}, ${p.name}, ${p.email}, ${p.phone}, ${p.status}, ${p.source}, ${p.code}, ${p.pass_hash}, ${p.salt}, ${p.ip_hash}, ${p.created_at}, ${p.referrer_id || ''})`;
   },
-  async allPartners() { return rows`SELECT id, name, email, phone, status, source, code, created_at FROM partners`; },
+  async allPartners() { return rows`SELECT id, name, email, phone, status, source, code, created_at, referrer_id FROM partners`; },
 
   async addClick(pid, day, ih) { await exec`UPSERT INTO clicks (partner_id, day, ip_hash) VALUES (${pid}, ${day}, ${ih})`; },
   async clicksByPartnerSince(pid, from) { return rows`SELECT day, COUNT(*) AS n FROM clicks WHERE partner_id = ${pid} AND day >= ${from} GROUP BY day`; },

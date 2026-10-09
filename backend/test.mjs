@@ -89,6 +89,35 @@ await step('выплата партнёру', async () => {
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
   assert.equal(d.payouts.find(x => x.partner === code).amount, 3100);
 });
+await step('команда: 10% с 1-го уровня и 5% со 2-го', async () => {
+  const t = Date.now();
+  const reg = async (name, mail, phone, pref, ip) => {
+    const r = await call('POST', '/api/register', { name, email: mail, phone, status: 'ИП', password: 'secret1', agree: true, pref }, null, ip);
+    assert.equal(r.status, 200, JSON.stringify(r.data)); return r.data;
+  };
+  const A = await reg('Анна Смирнова', `a${t}@ex.com`, '+7 901 000-00-01', '', '10.0.0.1');
+  const B = await reg('Борис Котов', `b${t}@ex.com`, '+7 901 000-00-02', A.code.toLowerCase(), '10.0.0.2');
+  assert.equal(B.invited, true);
+  const C = await reg('Вера Лис', `c${t}@ex.com`, '+7 901 000-00-03', B.code, '10.0.0.3');
+  const self = await reg('Анна Вторая', `a2${t}@ex.com`, '8 (901) 000-00-01', A.code, '10.0.0.4');
+  assert.equal(self.invited, false, 'нельзя пригласить самого себя (тот же телефон)');
+  await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе команды', phone: '+7 913 222-22-22', plan: 'standard', ref: C.code }, null, '10.0.0.9');
+  const d = (await call('GET', '/api/admin/data', null, admin)).data;
+  const l = d.leads.find(x => x.partner === C.code);
+  await call('POST', '/api/admin/lead', { id: l.id, status: 'paid', plan: 'standard', months: 2 }, admin);
+  const meA = (await call('GET', '/api/me', null, A.token)).data;
+  const meB = (await call('GET', '/api/me', null, B.token)).data;
+  const meC = (await call('GET', '/api/me', null, C.token)).data;
+  assert.equal(meC.stats.earned, 3100);
+  assert.equal(meB.stats.teamIncome, 310); assert.equal(meB.stats.earned, 310); assert.equal(meB.team.invitedBy, 'Анна С.');
+  assert.equal(meB.team.level1.length, 1); assert.equal(meB.team.level1[0].name, 'Вера Л.');
+  assert.equal(meA.stats.teamIncome, 155); assert.equal(meA.stats.balance, 155);
+  assert.equal(meA.team.level1.length, 1); assert.equal(meA.team.level2.length, 1); assert.equal(meA.team.level2[0].via, 'Борис К.');
+  const d2 = (await call('GET', '/api/admin/data', null, admin)).data;
+  const pa = d2.partners.find(x => x.code === A.code), pb = d2.partners.find(x => x.code === B.code);
+  assert.equal(pb.referrer, A.code); assert.equal(pa.teamIncome, 155); assert.equal(pa.team1, 1); assert.equal(pa.team2, 1);
+  assert.equal(d2.partners.find(x => x.code === self.code).referrer, null);
+});
 await step('удаление записей', async () => {
   let d = (await call('GET', '/api/admin/data', null, admin)).data;
   const p = d.partners.find(x => x.code === code);
