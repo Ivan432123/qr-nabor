@@ -20,3 +20,13 @@ jobs:
           L=$(curl -sS -m 20 -w ' [HTTP %{http_code}]' -H 'Content-Type: application/json' -d "$BODY" "$API?r=/api/admin/login" 2>&1)
           echo "::notice::Вход (пароль из секрета, длина ${#ADMIN_PASSWORD}) → $(echo "$L" | sed -E 's/"token":"[^"]*"/"token":"…"/')"
           P=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://ivan432123.github.io/qr-nabor/admin/ 2>&1); echo "::notice::Страница админки → HTTP $P"
+      - name: Сайты в хранилище (до подключения домена)
+        run: |
+          for h in qrstol.ru zerno.qrstol.ru; do
+            C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "https://$h.website.yandexcloud.net/" || true)
+            echo "::notice::$h.website.yandexcloud.net → HTTP $C, $(grep -o '<title>[^<]*' /tmp/p.html | head -1)"
+          done
+          C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "https://qrstol.ru.website.yandexcloud.net/IVAN12" || true)
+          echo "::notice::короткая ссылка /IVAN12 → HTTP $C, $(grep -o "ref=' + last" /tmp/p.html | head -1)"
+          NS=$(dig +short NS qrstol.ru @8.8.8.8 | tr '\n' ' '); echo "::notice::NS qrstol.ru: ${NS:-нет}"
+          W=$(whois qrstol.ru 2>/dev/null | grep -iE 'nserver|state|created' | tr '\n' ' ' | cut -c1-300); echo "::notice::whois: ${W:-нет данных}"
