@@ -145,6 +145,12 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
 .codebox{background:var(--soft,#DCEEEA);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:15px}
 .linkbtn{background:none;border:0;padding:4px 0;color:var(--brand,#0E4D4A);font-weight:700;font-size:14px;cursor:pointer;text-decoration:underline;align-self:flex-start;font-family:inherit}
 #xStep2[hidden]{display:none!important}
+.tier{display:flex;flex-direction:column;gap:12px}
+.tier-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.tier-term{background:var(--soft,#DCEEEA);color:var(--brand,#0E4D4A);font-weight:800;border-radius:999px;padding:6px 14px;font-size:14px}
+.tbar{height:12px;background:#EFE6D6;border-radius:999px;overflow:hidden}
+.tbar i{display:block;height:100%;background:linear-gradient(90deg,#0E4D4A,#2E8A7E);border-radius:999px}
+.tier-next{font-size:15px;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -186,8 +192,18 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
       <thead><tr><th>За что</th><th>Пакет «Старт»</th><th>Пакет «Стандарт»</th></tr></thead>
       <tbody>
         <tr><td>Оплата набора (50%)</td><td class="num">1 500 ₽</td><td class="num">2 500 ₽</td></tr>
-        <tr><td>Поддержка клиента (20%), до 24 месяцев</td><td class="num">400 ₽/мес</td><td class="num">400 ₽/мес</td></tr>
+        <tr><td>Поддержка клиента (20%), 24 месяца — дольше по статусу</td><td class="num">400 ₽/мес</td><td class="num">400 ₽/мес</td></tr>
         <tr><td>Бонус за каждое 5-е оплаченное заведение</td><td class="num" colspan="2">+2 000 ₽</td></tr>
+      </tbody>
+    </table></div>
+    <h3 style="margin:28px 0 8px;font-size:22px">Статусы: чем больше кафе — тем дольше выплаты</h3>
+    <p class="lead">Новый срок действует на всех ваших клиентов, в том числе приведённых раньше. Статус не сгорает.</p>
+    <div class="tbl"><table class="rates">
+      <thead><tr><th>Статус</th><th>Как получить</th><th>Выплаты с поддержки</th></tr></thead>
+      <tbody>
+        <tr><td><b>Партнёр</b></td><td>сразу после регистрации</td><td class="num">24 месяца</td></tr>
+        <tr><td><b>Профи</b></td><td>5 оплаченных кафе за 3 месяца</td><td class="num">36 месяцев</td></tr>
+        <tr><td><b>Амбассадор</b></td><td>20 оплаченных кафе за 12 месяцев</td><td class="num">пожизненно</td></tr>
       </tbody>
     </table></div>
     <h3 style="margin:28px 0 8px;font-size:22px">Доход с команды</h3>
@@ -216,7 +232,8 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <ol>
             <li>Исполнитель — самозанятый, оказывающий услуги по созданию и поддержке QR-меню. Партнёр — самозанятый или ИП, принявший эти условия.</li>
             <li>Партнёр рекомендует услуги Исполнителя заведениям. Клиент считается приведённым партнёром, если пришёл по его ссылке (в течение 60 дней) или назвал его промокод до оплаты и ранее не был клиентом Исполнителя.</li>
-            <li>Вознаграждение: 50% от стоимости набора (1 500 ₽ за «Старт», 2 500 ₽ за «Стандарт») после полной оплаты; 20% от ежемесячной поддержки (400 ₽ в месяц за любой пакет) за каждый оплаченный месяц, не более 24 месяцев; 2 000 ₽ за каждое пятое оплаченное заведение.</li>
+            <li>Вознаграждение: 50% от стоимости набора (1 500 ₽ за «Старт», 2 500 ₽ за «Стандарт») после полной оплаты; 20% от ежемесячной поддержки (400 ₽ в месяц за любой пакет) за каждый оплаченный месяц в пределах срока по статусу партнёра (п. 4); 2 000 ₽ за каждое пятое оплаченное заведение.</li>
+            <li>Статусы. «Партнёр» — с момента регистрации, срок выплат с поддержки 24 месяца. «Профи» — когда оплачено 5 заведений партнёра за любые 3 месяца подряд, срок 36 месяцев. «Амбассадор» — когда оплачено 20 заведений за любые 12 месяцев подряд, выплаты с поддержки без ограничения срока, пока клиент её оплачивает. Новый срок распространяется на всех клиентов партнёра, включая приведённых ранее. Присвоенный статус сохраняется.</li>
             <li>Команда: если партнёр зарегистрировался по пригласительной ссылке другого партнёра, пригласившему начисляется 10% от вознаграждения приглашённого за привлечённые им заведения (п. 3, без бонусов), а пригласившему того — 5%. Начисления производятся за счёт Исполнителя и не уменьшают вознаграждение приглашённого. Уровней не больше двух. Вознаграждение за регистрацию партнёров без оплат заведений не выплачивается; приглашать самого себя запрещено.</li>
             <li>Выплаты — до 10 числа за предыдущий месяц, переводом. Партнёр передаёт чек в течение 3 дней после получения денег.</li>
             <li>Запрещено: спам, обещания сверх пакетов, представляться сотрудником Исполнителя, приводить себя или своё заведение, реклама в интернете без маркировки. При нарушении Исполнитель вправе заблокировать промокод.</li>
@@ -292,6 +309,10 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
         <div class="tile"><span class="k">Переходов за 30 дней</span><span class="v" id="tClicks">0</span><span class="d" id="tClicksNote"></span></div>
         <div class="tile"><span class="k">Заявок за 30 дней</span><span class="v" id="tLeads">0</span><span class="d" id="tConv"></span></div>
         <div class="tile"><span class="k">Оплатили</span><span class="v" id="tActive">0</span><span class="d" id="tBonus"></span></div>
+      </div>
+      <div class="card tier">
+        <div class="tier-top"><div><span class="note" style="margin:0">Ваш статус</span><h3 id="tierName" style="margin:2px 0 0"></h3></div><span class="tier-term" id="tierTerm"></span></div>
+        <div id="tierNext"></div>
       </div>
       <div class="grid2">
         <div class="card">
@@ -551,8 +572,21 @@ function render(d){
   $('msgText').textContent = `Здравствуйте! Хочу посоветовать полезную вещь для вашего заведения — QR-меню: гость наводит камеру на код на столе и видит меню с ценами на своём телефоне. В наборе ещё табличка для отзывов на Яндекс Картах и Wi-Fi по QR. Цены меняются за минуту, перепечатывать меню не нужно. От 3 000 ₽, делают за 2–4 дня.\nПо промокоду ${p.code} первый месяц поддержки бесплатно.\nПодробнее: ${link}`;
   $('postText').textContent = `Владельцам кафе и кофеен: QR-меню на телефоне гостя, табличка для отзывов на Яндекс Картах и Wi-Fi по QR — одним набором за 2–4 дня.\n\nГость сканирует код на столе, видит меню с ценами и добавками, собирает заказ. Цены меняются за минуту, бумажные меню больше не перепечатываются.\n\nОт 3 000 ₽. По промокоду ${p.code} — первый месяц поддержки бесплатно.\n${link}`;
   $('demoLink').href = CFG.DEMO_URL || '#';
+  renderTier(d.tier);
   renderTeam(d, p);
   drawChart(d.daily);
+}
+function renderTier(t){
+  if (!t) return;
+  $('tierName').textContent = t.name;
+  $('tierTerm').textContent = t.months == null ? 'выплаты пожизненно' : 'выплаты ' + t.months + ' месяцев';
+  const n = t.next;
+  if (!n){ $('tierNext').innerHTML = '<p class="tier-next">Высший статус — выплаты с поддержки идут, пока клиент платит. Спасибо, что вы с нами!</p>'; return; }
+  const pct = Math.min(100, Math.round(n.have / n.need * 100));
+  const per = n.windowMonths === 12 ? 'за 12 месяцев' : 'за ' + n.windowMonths + ' месяца';
+  const term = n.months == null ? 'пожизненные выплаты' : n.months + ' месяцев выплат';
+  $('tierNext').innerHTML = `<div class="tbar" role="progressbar" aria-valuemin="0" aria-valuemax="${n.need}" aria-valuenow="${n.have}"><i style="width:${Math.max(3,pct)}%"></i></div>
+    <p class="tier-next">До статуса <b>«${esc(n.name)}»</b> осталось <b>${n.left}</b> из ${n.need} оплаченных кафе ${per} → ${term} по всем вашим клиентам.</p>`;
 }
 function renderTeam(d, p){
   const t = d.team || { level1:[], level2:[], income:0 };

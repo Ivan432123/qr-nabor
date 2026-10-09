@@ -171,7 +171,7 @@ function renderPartners(){
     P.map(p=>`<tr>
       <td><b>${esc(p.code)}</b></td>
       <td>${esc(p.name)}<br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
-      <td>${esc(p.status)}<br><span class="muted">${esc(p.source||'')}</span></td>
+      <td><b>${esc(p.tier||'Партнёр')}</b><br>${esc(p.status)}<br><span class="muted">${esc(p.source||'')}</span></td>
       <td>${p.referrer ? 'пригласил ' + esc(p.referrer) : '<span class="muted">сам</span>'}<br><span class="muted">${p.team1||0} / ${p.team2||0} в команде${p.teamIncome ? ' · ' + rub(p.teamIncome) : ''}</span></td>
       <td class="num">${p.clicks}</td><td class="num">${p.leads}</td><td class="num">${p.paidCount}</td>
       <td class="num">${rub(p.earned)}</td><td class="num">${rub(p.paidOut)}</td><td class="num"><b>${rub(p.balance)}</b></td>

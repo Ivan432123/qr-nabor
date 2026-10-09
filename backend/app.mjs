@@ -109,15 +109,46 @@ function translit(name) {
 }
 
 /* ---------- начисления ---------- */
-function leadEarned(l) {
+// Статусы партнёра: срок выплат с поддержки растёт за число оплаченных кафе за период. Статус не сгорает.
+export const TIERS = [
+  { key: 'partner', name: 'Партнёр', months: 24 },
+  { key: 'pro', name: 'Профи', need: 5, days: 92, months: 36 },          // 5 кафе за 3 месяца
+  { key: 'amb', name: 'Амбассадор', need: 20, days: 366, months: null }  // 20 кафе за 12 месяцев — бессрочно
+];
+function bestWindow(dates, days) {
+  let best = 0, j = 0;
+  for (let i = 0; i < dates.length; i++) { while (dates[i] - dates[j] > days * 864e5) j++; best = Math.max(best, i - j + 1); }
+  return best;
+}
+function tierOf(leads) {
+  const dates = leads.filter(l => l.status === 'paid').map(l => Date.parse(l.paid_at || l.created_at)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  let cur = TIERS[0];
+  for (const t of TIERS.slice(1)) if (bestWindow(dates, t.days) >= t.need) cur = t;
+  const next = TIERS[TIERS.indexOf(cur) + 1];
+  let progress = null;
+  if (next) {
+    const have = dates.filter(d => d >= Date.now() - next.days * 864e5).length;
+    progress = { key: next.key, name: next.name, need: next.need, months: next.months, windowMonths: Math.round(next.days / 30.5), have, left: Math.max(0, next.need - have) };
+  }
+  return { key: cur.key, name: cur.name, months: cur.months, next: progress };
+}
+function tierMap(leads) {
+  const by = {};
+  for (const l of leads) if (l.partner_id) (by[l.partner_id] = by[l.partner_id] || []).push(l);
+  return Object.fromEntries(Object.entries(by).map(([id, ls]) => [id, tierOf(ls)]));
+}
+// Начисление по заявке; срок поддержки ограничен статусом партнёра (tiers — карта статусов)
+function leadEarned(l, tiers) {
   if (l.status !== 'paid') return 0;
   const plan = l.plan === 'standard' ? 'standard' : 'start';
-  return RATES.setup[plan] + Math.min(Number(l.months) || 0, RATES.maxMonths) * RATES.monthly[plan];
+  const t = tiers && tiers[l.partner_id];
+  const cap = t ? (t.months == null ? Infinity : t.months) : RATES.maxMonths;
+  return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * RATES.monthly[plan];
 }
-function summarize(leads, payouts, teamIncome = 0) {
+function summarize(leads, payouts, teamIncome = 0, tiers) {
   const paid = leads.filter(l => l.status === 'paid');
   const bonus = Math.floor(paid.length / RATES.bonusEvery) * RATES.bonus;
-  const fromLeads = paid.reduce((s, l) => s + leadEarned(l), 0);
+  const fromLeads = paid.reduce((s, l) => s + leadEarned(l, tiers), 0);
   const earned = fromLeads + bonus + teamIncome;
   const paidOut = payouts.reduce((s, p) => s + Number(p.amount), 0);
   return { paidCount: paid.length, fromLeads, bonus, teamIncome, earned, paidOut, balance: earned - paidOut,
@@ -126,9 +157,9 @@ function summarize(leads, payouts, teamIncome = 0) {
 const shortName = n => { const [a = '', b = ''] = String(n || '').trim().split(/\s+/); return b ? `${a} ${b[0]}.` : a; };
 // Команда партнёра: приглашённые им (1-й уровень) и приглашённые ими (2-й уровень).
 // Доля считается только с заработка за подключённые кафе — без бонусов и без их собственной команды.
-function teamFor(pid, partners, leads) {
+function teamFor(pid, partners, leads, tiers = tierMap(leads)) {
   const own = {};
-  for (const l of leads) if (l.partner_id) own[l.partner_id] = (own[l.partner_id] || 0) + leadEarned(l);
+  for (const l of leads) if (l.partner_id) own[l.partner_id] = (own[l.partner_id] || 0) + leadEarned(l, tiers);
   const kids = id => partners.filter(p => p.id !== pid && (p.referrer_id || '') === id);
   const row = (p, rate) => ({ name: shortName(p.name), joined: p.created_at, earned: own[p.id] || 0, share: Math.round((own[p.id] || 0) * rate) });
   const l1 = kids(pid);
@@ -273,7 +304,9 @@ async function me(ctx) {
   const from = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
   const [allLeads, allPartners, payouts, clickRows] = await Promise.all([db.allLeads(), db.allPartners(), db.payoutsByPartner(p.id), db.clicksByPartnerSince(p.id, from)]);
   const leads = allLeads.filter(l => l.partner_id === p.id);
-  const team = teamFor(p.id, allPartners, allLeads);
+  const tiers = tierMap(allLeads);
+  const tier = tiers[p.id] || tierOf([]);
+  const team = teamFor(p.id, allPartners, allLeads, tiers);
   const inviter = allPartners.find(x => x.id === (allPartners.find(y => y.id === p.id)?.referrer_id || '-'));
   leads.sort(byDateDesc); payouts.sort(byDateDesc);
   const clickMap = Object.fromEntries(clickRows.map(r => [r.day, r.n]));
@@ -286,10 +319,11 @@ async function me(ctx) {
   }
   return json({
     partner: { name: p.name, email: p.email, phone: p.phone, code: p.code },
-    stats: { ...summarize(leads, payouts, team.income), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
+    stats: { ...summarize(leads, payouts, team.income, tiers), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
     daily,
-    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, earned: leadEarned(l) })),
+    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, earned: leadEarned(l, tiers) })),
     payouts: payouts.map(x => ({ date: x.created_at, amount: x.amount, note: x.note, check: !!x.check_received })),
+    tier,
     team: { ...team, invitedBy: inviter ? shortName(inviter.name) : null },
     rates: RATES
   });
@@ -342,15 +376,17 @@ async function adminData(ctx) {
   leads.sort(byDateDesc); partners.sort(byDateDesc); payouts.sort(byDateDesc);
   const pById = Object.fromEntries(partners.map(p => [p.id, p]));
   const clickMap = Object.fromEntries(clicks.map(c => [c.partner_id, c.n]));
+  const tiers = tierMap(leads);
   return json({
     leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, phone: l.phone, plan: l.plan, status: l.status, months: l.months,
-      partner: pById[l.partner_id]?.code || null, partnerName: pById[l.partner_id]?.name || null, earned: l.partner_id ? leadEarned(l) : 0 })),
+      partner: pById[l.partner_id]?.code || null, partnerName: pById[l.partner_id]?.name || null, earned: l.partner_id ? leadEarned(l, tiers) : 0 })),
     partners: partners.map(p => {
       const pl = leads.filter(l => l.partner_id === p.id);
-      const team = teamFor(p.id, partners, leads);
-      return { id: p.id, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, code: p.code, created_at: p.created_at,
+      const team = teamFor(p.id, partners, leads, tiers);
+      const tier = tiers[p.id] || tierOf([]);
+      return { id: p.id, tier: tier.name, tierMonths: tier.months, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, code: p.code, created_at: p.created_at,
         referrer: pById[p.referrer_id]?.code || null, team1: team.level1.length, team2: team.level2.length,
-        clicks: clickMap[p.id] || 0, leads: pl.length, ...summarize(pl, payouts.filter(x => x.partner_id === p.id), team.income) };
+        clicks: clickMap[p.id] || 0, leads: pl.length, ...summarize(pl, payouts.filter(x => x.partner_id === p.id), team.income, tiers) };
     }),
     payouts: payouts.map(x => ({ id: x.id, date: x.created_at, partner: pById[x.partner_id]?.code || null, amount: x.amount, note: x.note, check: !!x.check_received }))
   });

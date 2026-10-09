@@ -136,6 +136,33 @@ await step('команда: 10% с 1-го уровня и 5% со 2-го', async
   assert.equal(pb.referrer, A.code); assert.equal(pa.teamIncome, 165); assert.equal(pa.team1, 1); assert.equal(pa.team2, 1);
   assert.equal(d2.partners.find(x => x.code === self.code).referrer, null);
 });
+await step('статусы: 5 кафе за 3 месяца → «Профи», выплаты 36 месяцев', async () => {
+  const t = Date.now();
+  const P = await register({ name: 'Глеб Сомов', email: `g${t}@ex.ru`, phone: '+7 902 000-00-09', status: 'ИП', password: 'secret1', agree: true }, '20.0.0.1');
+  assert.equal(P.status, 200);
+  const tok = P.data.token, pc = P.data.code;
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    await call('POST', '/api/lead', { name: 'Кафе', cafe: `Кафе статуса ${i}`, phone: '+7 913 333-33-3' + i, plan: 'start', ref: pc }, null, '20.1.0.' + i);
+  }
+  const d = (await call('GET', '/api/admin/data', null, admin)).data;
+  for (const l of d.leads.filter(x => x.partner === pc)) ids.push(l.id);
+  assert.equal(ids.length, 5);
+  // первое кафе платит поддержку уже 30 месяцев
+  await call('POST', '/api/admin/lead', { id: ids[0], status: 'paid', plan: 'start', months: 30 }, admin);
+  for (let i = 1; i < 4; i++) await call('POST', '/api/admin/lead', { id: ids[i], status: 'paid', plan: 'start', months: 0 }, admin);
+  let me = (await call('GET', '/api/me', null, tok)).data;
+  assert.equal(me.tier.key, 'partner'); assert.equal(me.tier.next.left, 1);
+  assert.equal(me.stats.fromLeads, 1500 + 24 * 400 + 3 * 1500, 'до статуса — не больше 24 месяцев');
+  await call('POST', '/api/admin/lead', { id: ids[4], status: 'paid', plan: 'start', months: 0 }, admin);
+  me = (await call('GET', '/api/me', null, tok)).data;
+  assert.equal(me.tier.key, 'pro'); assert.equal(me.tier.months, 36);
+  assert.equal(me.tier.next.key, 'amb'); assert.equal(me.tier.next.left, 15);
+  assert.equal(me.stats.fromLeads, 1500 + 30 * 400 + 4 * 1500, '«Профи» — до 36 месяцев, в том числе по старым клиентам');
+  assert.equal(me.stats.bonus, 2000);
+  const pa = (await call('GET', '/api/admin/data', null, admin)).data.partners.find(x => x.code === pc);
+  assert.equal(pa.tier, 'Профи');
+});
 await step('новый пароль партнёру', async () => {
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
   const p = d.partners.find(x => x.code === code);
