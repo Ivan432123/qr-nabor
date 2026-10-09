@@ -1,7 +1,15 @@
-// Отправка писем с кодами. Сейчас — через почту Яндекса (SMTP, пароль приложения).
-// Переменные: SMTP_USER (адрес ящика), SMTP_PASS (пароль приложения), SMTP_HOST (по умолчанию smtp.yandex.ru).
+// Отправка писем с кодами через почту Яндекса, Mail.ru или Рамблера (SMTP, пароль приложения).
+// Переменные: SMTP_USER (адрес ящика), SMTP_PASS (пароль приложения), SMTP_HOST (по умолчанию — по адресу ящика).
 // MAIL_MODE=capture — для проверок: письма складываются в globalThis.__outbox.
 import nodemailer from 'nodemailer';
+
+// Сервер отправки определяем по адресу ящика
+export function smtpHost(user) {
+  const d = String(user || '').split('@')[1] || '';
+  if (['mail.ru', 'bk.ru', 'list.ru', 'inbox.ru', 'internet.ru', 'xmail.ru'].includes(d)) return 'smtp.mail.ru';
+  if (['rambler.ru', 'ro.ru', 'lenta.ru', 'myrambler.ru', 'autorambler.ru'].includes(d)) return 'smtp.rambler.ru';
+  return 'smtp.yandex.ru';
+}
 
 export function createMail(env) {
   if (env.MAIL_MODE === 'capture') {
@@ -10,7 +18,7 @@ export function createMail(env) {
   }
   if (!env.SMTP_USER || !env.SMTP_PASS) return { enabled: false, async send() { throw new Error('Почта не настроена'); } };
   const transport = nodemailer.createTransport({
-    host: env.SMTP_HOST || 'smtp.yandex.ru', port: 465, secure: true,
+    host: env.SMTP_HOST || smtpHost(env.SMTP_USER), port: 465, secure: true,
     auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
     connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000
   });
