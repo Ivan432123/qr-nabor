@@ -27,7 +27,7 @@ if (useYdb) {
 
 const step = async (name, fn) => { try { await fn(); console.log('✓', name); } catch (e) { console.error('✗', name, '\n', e); process.exit(1); } };
 let token, code, admin, leadId;
-const email = `test${Date.now()}@example.com`;
+const email = `test${Date.now()}@example.ru`;
 
 await step('сервер отвечает', async () => { const r = await call('GET', '/api'); assert.equal(r.data.ok, true); });
 await step('создание таблиц', async () => {
@@ -38,6 +38,10 @@ await step('создание таблиц', async () => {
 await step('регистрация партнёра', async () => {
   const bad = await call('POST', '/api/register', { name: 'Иван', email, phone: '+7 900 123-45-67', status: 'Самозанятый', password: '123456' });
   assert.equal(bad.status, 400);
+  const gmail = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@gmail.com', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
+  assert.equal(gmail.status, 400, 'зарубежная почта не принимается');
+  const foreign = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@mail.ru', phone: '+1 202 555 0100', status: 'ИП', password: '123456', agree: true });
+  assert.equal(foreign.status, 400, 'зарубежный телефон не принимается');
   const r = await call('POST', '/api/register', { name: 'Иван Петров', email, phone: '+7 900 123-45-67', status: 'Самозанятый', source: 'Авито', password: 'secret1', agree: true });
   assert.equal(r.status, 200, JSON.stringify(r.data)); token = r.data.token; code = r.data.code;
   assert.match(code, /^IVAN\d\d/);
@@ -95,11 +99,11 @@ await step('команда: 10% с 1-го уровня и 5% со 2-го', async
     const r = await call('POST', '/api/register', { name, email: mail, phone, status: 'ИП', password: 'secret1', agree: true, pref }, null, ip);
     assert.equal(r.status, 200, JSON.stringify(r.data)); return r.data;
   };
-  const A = await reg('Анна Смирнова', `a${t}@ex.com`, '+7 901 000-00-01', '', '10.0.0.1');
-  const B = await reg('Борис Котов', `b${t}@ex.com`, '+7 901 000-00-02', A.code.toLowerCase(), '10.0.0.2');
+  const A = await reg('Анна Смирнова', `a${t}@ex.ru`, '+7 901 000-00-01', '', '10.0.0.1');
+  const B = await reg('Борис Котов', `b${t}@ex.ru`, '+7 901 000-00-02', A.code.toLowerCase(), '10.0.0.2');
   assert.equal(B.invited, true);
-  const C = await reg('Вера Лис', `c${t}@ex.com`, '+7 901 000-00-03', B.code, '10.0.0.3');
-  const self = await reg('Анна Вторая', `a2${t}@ex.com`, '8 (901) 000-00-01', A.code, '10.0.0.4');
+  const C = await reg('Вера Лис', `c${t}@ex.ru`, '+7 901 000-00-03', B.code, '10.0.0.3');
+  const self = await reg('Анна Вторая', `a2${t}@ex.ru`, '8 (901) 000-00-01', A.code, '10.0.0.4');
   assert.equal(self.invited, false, 'нельзя пригласить самого себя (тот же телефон)');
   await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе команды', phone: '+7 913 222-22-22', plan: 'standard', ref: C.code }, null, '10.0.0.9');
   const d = (await call('GET', '/api/admin/data', null, admin)).data;

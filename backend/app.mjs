@@ -133,6 +133,17 @@ function teamFor(pid, partners, leads) {
   const income1 = level1.reduce((s, r) => s + r.share, 0), income2 = level2.reduce((s, r) => s + r.share, 0);
   return { level1, level2, income1, income2, income: income1 + income2 };
 }
+// По закону вход на российские сайты — через российские сервисы. Принимаем почту российских сервисов
+// и адреса на российских доменах (.ru, .рф, .su), телефон — только российский.
+const RU_MAIL = ['yandex.ru','ya.ru','yandex.com','narod.ru','mail.ru','bk.ru','list.ru','inbox.ru','internet.ru','vk.com','rambler.ru','ro.ru','lenta.ru','myrambler.ru','autorambler.ru','rambler.ua'];
+function isRussianEmail(e) {
+  const d = String(e).split('@')[1] || '';
+  return RU_MAIL.includes(d) || /\.(ru|su|xn--p1ai|рф)$/.test(d);
+}
+function isRussianPhone(p) {
+  const d = String(p || '').replace(/\D/g, '');
+  return (d.length === 11 && (d[0] === '7' || d[0] === '8') && d[1] === '9') || (d.length === 10 && d[0] === '9');
+}
 const digits = s => String(s || '').replace(/\D/g, '').slice(-10);
 const byDateDesc = (a, b) => (a.created_at < b.created_at ? 1 : -1);
 
@@ -150,7 +161,8 @@ async function register(ctx) {
   const status = clean(b.status, 30), source = clean(b.source, 80), password = String(b.password || '');
   if (name.length < 2) return json({ error: 'Укажите имя' }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Проверьте email' }, 400);
-  if (phone.replace(/\D/g, '').length < 10) return json({ error: 'Проверьте телефон' }, 400);
+  if (!isRussianEmail(email)) return json({ error: 'Нужна российская почта: Яндекс, Mail.ru, Рамблер или адрес на домене .ru' }, 400);
+  if (!isRussianPhone(phone)) return json({ error: 'Нужен российский номер телефона: +7 и 10 цифр' }, 400);
   if (!['Самозанятый', 'ИП'].includes(status)) return json({ error: 'Нужен статус самозанятого или ИП' }, 400);
   if (password.length < 6) return json({ error: 'Пароль — не короче 6 символов' }, 400);
   if (!b.agree) return json({ error: 'Примите условия оферты' }, 400);

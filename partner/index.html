@@ -141,6 +141,7 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
 .show-m{display:none}
 @media (max-width:600px){.hide-m{display:none}.show-m{display:block}}
 .team-h{margin:22px 0 10px;font-size:18px}
+.hint{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -228,8 +229,8 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
         <form id="regForm" novalidate>
           <p class="invited" id="invNote" hidden></p>
           <div><label for="rName">Имя и фамилия</label><input type="text" id="rName" autocomplete="name"></div>
-          <div><label for="rEmail">Email</label><input type="email" id="rEmail" autocomplete="email"></div>
-          <div><label for="rPhone">Телефон для выплат</label><input type="tel" id="rPhone" autocomplete="tel"></div>
+          <div><label for="rEmail">Email — российская почта</label><input type="email" id="rEmail" autocomplete="email" placeholder="name@yandex.ru"><div class="hint">Яндекс, Mail.ru, Рамблер или адрес на домене .ru. Gmail и другие зарубежные не подойдут — так требует закон.</div></div>
+          <div><label for="rPhone">Телефон для выплат по СБП</label><input type="tel" id="rPhone" autocomplete="tel" placeholder="+7 900 000-00-00"><div class="hint">Российский номер, к которому привязан ваш банк. На него переводим вознаграждение через СБП и по нему связываемся.</div></div>
           <div><label for="rPass">Придумайте пароль</label><input type="password" id="rPass" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
           <div><label for="rStatus">Статус</label><select id="rStatus"><option>Самозанятый</option><option>ИП</option></select></div>
           <div><label for="rSrc">Где будете рекомендовать</label><select id="rSrc"><option>Знакомые владельцы заведений</option><option>Свой сайт или блог</option><option>Сообщества ВК и MAX</option><option>Реклама с маркировкой</option></select></div>
