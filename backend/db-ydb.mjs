@@ -55,8 +55,11 @@ export const db = {
     ];
     for (const q of ddl) await sql([q]);
     // новые столбцы для уже созданных таблиц (повторно — пропускаем)
-    for (const q of ['ALTER TABLE partners ADD COLUMN referrer_id Utf8']) {
-      try { await sql([q]); } catch (e) { if (!/exist|duplicate|already/i.test(String(e && e.message))) throw e; }
+    const columns = [['partners', 'referrer_id', 'Utf8']];
+    for (const [table, col, type] of columns) {
+      let has = true;
+      try { await sql([`SELECT ${col} FROM ${table} LIMIT 0`]); } catch { has = false; }
+      if (!has) await sql([`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`]);
     }
   },
 
