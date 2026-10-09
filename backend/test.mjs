@@ -150,15 +150,19 @@ await step('статусы: 5 кафе за 3 месяца → «Профи», �
   assert.equal(ids.length, 5);
   // первое кафе платит поддержку уже 30 месяцев
   await call('POST', '/api/admin/lead', { id: ids[0], status: 'paid', plan: 'start', months: 30 }, admin);
-  for (let i = 1; i < 4; i++) await call('POST', '/api/admin/lead', { id: ids[i], status: 'paid', plan: 'start', months: 0 }, admin);
+  // оплачен только набор — ещё не считается
+  await call('POST', '/api/admin/lead', { id: ids[1], status: 'paid', plan: 'start', months: 0 }, admin);
+  let pre = (await call('GET', '/api/me', null, tok)).data;
+  assert.equal(pre.stats.paidCount, 1); assert.equal(pre.leads.find(l => l.pending).earned, 0, 'без месяца поддержки начисления нет');
+  for (let i = 1; i < 4; i++) await call('POST', '/api/admin/lead', { id: ids[i], status: 'paid', plan: 'start', months: 1 }, admin);
   let me = (await call('GET', '/api/me', null, tok)).data;
   assert.equal(me.tier.key, 'partner'); assert.equal(me.tier.next.left, 1);
-  assert.equal(me.stats.fromLeads, 1500 + 24 * 400 + 3 * 1500, 'до статуса — не больше 24 месяцев');
-  await call('POST', '/api/admin/lead', { id: ids[4], status: 'paid', plan: 'start', months: 0 }, admin);
+  assert.equal(me.stats.fromLeads, 1500 + 24 * 400 + 3 * 1900, 'до статуса — не больше 24 месяцев');
+  await call('POST', '/api/admin/lead', { id: ids[4], status: 'paid', plan: 'start', months: 1 }, admin);
   me = (await call('GET', '/api/me', null, tok)).data;
   assert.equal(me.tier.key, 'pro'); assert.equal(me.tier.months, 36);
   assert.equal(me.tier.next.key, 'amb'); assert.equal(me.tier.next.left, 15);
-  assert.equal(me.stats.fromLeads, 1500 + 30 * 400 + 4 * 1500, '«Профи» — до 36 месяцев, в том числе по старым клиентам');
+  assert.equal(me.stats.fromLeads, 1500 + 30 * 400 + 4 * 1900, '«Профи» — до 36 месяцев, в том числе по старым клиентам');
   assert.equal(me.stats.bonus, 2000);
   const pa = (await call('GET', '/api/admin/data', null, admin)).data.partners.find(x => x.code === pc);
   assert.equal(pa.tier, 'Профи');

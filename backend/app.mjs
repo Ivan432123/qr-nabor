@@ -120,8 +120,10 @@ function bestWindow(dates, days) {
   for (let i = 0; i < dates.length; i++) { while (dates[i] - dates[j] > days * 864e5) j++; best = Math.max(best, i - j + 1); }
   return best;
 }
+// Заведение «оплачено» для партнёра, когда оплачены набор и хотя бы 1 месяц поддержки
+const qualified = l => l.status === 'paid' && (Number(l.months) || 0) >= 1;
 function tierOf(leads) {
-  const dates = leads.filter(l => l.status === 'paid').map(l => Date.parse(l.paid_at || l.created_at)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  const dates = leads.filter(qualified).map(l => Date.parse(l.paid_at || l.created_at)).filter(n => !isNaN(n)).sort((a, b) => a - b);
   let cur = TIERS[0];
   for (const t of TIERS.slice(1)) if (bestWindow(dates, t.days) >= t.need) cur = t;
   const next = TIERS[TIERS.indexOf(cur) + 1];
@@ -139,14 +141,14 @@ function tierMap(leads) {
 }
 // Начисление по заявке; срок поддержки ограничен статусом партнёра (tiers — карта статусов)
 function leadEarned(l, tiers) {
-  if (l.status !== 'paid') return 0;
+  if (!qualified(l)) return 0;
   const plan = l.plan === 'standard' ? 'standard' : 'start';
   const t = tiers && tiers[l.partner_id];
   const cap = t ? (t.months == null ? Infinity : t.months) : RATES.maxMonths;
   return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * RATES.monthly[plan];
 }
 function summarize(leads, payouts, teamIncome = 0, tiers) {
-  const paid = leads.filter(l => l.status === 'paid');
+  const paid = leads.filter(qualified);
   const bonus = Math.floor(paid.length / RATES.bonusEvery) * RATES.bonus;
   const fromLeads = paid.reduce((s, l) => s + leadEarned(l, tiers), 0);
   const earned = fromLeads + bonus + teamIncome;
@@ -321,7 +323,7 @@ async function me(ctx) {
     partner: { name: p.name, email: p.email, phone: p.phone, code: p.code },
     stats: { ...summarize(leads, payouts, team.income, tiers), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
     daily,
-    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, earned: leadEarned(l, tiers) })),
+    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
     payouts: payouts.map(x => ({ date: x.created_at, amount: x.amount, note: x.note, check: !!x.check_received })),
     tier,
     team: { ...team, invitedBy: inviter ? shortName(inviter.name) : null },
