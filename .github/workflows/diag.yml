@@ -13,6 +13,9 @@ jobs:
           export PATH=/opt/yc/bin:$PATH
           printf '%s' "$YC_SA_KEY" > k.json
           yc config set endpoint api.cloud.yandex.net:443; yc config set service-account-key k.json; yc config set folder-id "$YC_FOLDER_ID"
+          echo "::notice::список функций: $(timeout 90 yc serverless function list --format json 2>&1 | tr '\n' ' ' | cut -c1-600)"
+          echo "::notice::базы: $(timeout 90 yc ydb database list --format json 2>&1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{console.log(JSON.parse(s).map(d=>d.name+':'+d.status).join(', '))}catch(e){console.log(s.slice(0,300))}})")"
+          echo "::notice::каталог: $(timeout 60 yc resource-manager folder get "$YC_FOLDER_ID" --format json 2>&1 | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{const j=JSON.parse(s);console.log(j.name,j.status)}catch(e){console.log(s.slice(0,300))}})")"
           echo "::notice::DNS functions: $(getent hosts functions.yandexcloud.net | head -2 | tr '\n' ' ')"
           echo "::notice::TCP: $(timeout 10 bash -c 'echo > /dev/tcp/functions.yandexcloud.net/443' && echo ok || echo нет)"
           S=$(date +%s); O=$(yc serverless function invoke --name nabor-api -d '{"httpMethod":"GET","queryStringParameters":{"r":"/api"},"headers":{}}' 2>&1 | tr '\n' ' ' | cut -c1-400); echo "::notice::invoke через API ($(( $(date +%s)-S )) с): $O"
