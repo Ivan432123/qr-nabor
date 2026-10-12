@@ -1,0 +1,20 @@
+name: Диагностика сервера
+on: workflow_dispatch
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    env:
+      YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+    steps:
+      - name: yc
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n >/dev/null
+          export PATH=/opt/yc/bin:$PATH
+          printf '%s' "$YC_SA_KEY" > k.json
+          yc config set endpoint api.cloud.yandex.net:443; yc config set service-account-key k.json; yc config set folder-id "$YC_FOLDER_ID"
+          echo "::notice::DNS functions: $(getent hosts functions.yandexcloud.net | head -2 | tr '\n' ' ')"
+          echo "::notice::TCP: $(timeout 10 bash -c 'echo > /dev/tcp/functions.yandexcloud.net/443' && echo ok || echo нет)"
+          S=$(date +%s); O=$(yc serverless function invoke --name nabor-api -d '{"httpMethod":"GET","queryStringParameters":{"r":"/api"},"headers":{}}' 2>&1 | tr '\n' ' ' | cut -c1-400); echo "::notice::invoke через API ($(( $(date +%s)-S )) с): $O"
+          echo "::notice::функция: $(yc serverless function get nabor-api --format json | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const j=JSON.parse(s);console.log(j.status, j.http_invoke_url)})")"
+          echo "::notice::логи: $(yc serverless function logs nabor-api --since 24h 2>&1 | tail -8 | tr '\n' ' ' | cut -c1-800)"
