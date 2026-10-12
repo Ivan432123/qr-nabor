@@ -14,12 +14,12 @@ jobs:
         run: |
           API=$(grep -oE "https://functions\.yandexcloud\.net/[a-z0-9]+" config.js | head -1)
           echo "::notice::API_URL в config.js: $API"
-          R=$(curl -sS -m 20 "$API?r=/api" 2>&1); echo "::notice::GET /api → $R"
-          C=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://ivan432123.github.io' -H 'Access-Control-Request-Method: POST' "$API?r=/api/admin/login" 2>&1); echo "::notice::OPTIONS (CORS) → $C"
+          S=$(date +%s); R=$(curl -sS -m 40 "$API?r=/api" 2>&1 || true); echo "::notice::GET /api → $R ($(( $(date +%s)-S )) с)"
+          C=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -m 40 -X OPTIONS -H 'Origin: https://ivan432123.github.io' -H 'Access-Control-Request-Method: POST' "$API?r=/api/admin/login" 2>&1 || true); echo "::notice::OPTIONS (CORS) → $C"
           BODY=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
-          L=$(curl -sS -m 20 -w ' [HTTP %{http_code}]' -H 'Content-Type: application/json' -d "$BODY" "$API?r=/api/admin/login" 2>&1)
+          L=$(curl -sS -m 40 -w ' [HTTP %{http_code}]' -H 'Content-Type: application/json' -d "$BODY" "$API?r=/api/admin/login" 2>&1 || true)
           echo "::notice::Вход (пароль из секрета, длина ${#ADMIN_PASSWORD}) → $(echo "$L" | sed -E 's/"token":"[^"]*"/"token":"…"/')"
-          P=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://ivan432123.github.io/qr-nabor/admin/ 2>&1); echo "::notice::Страница админки → HTTP $P"
+          P=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://ivan432123.github.io/qr-nabor/admin/ 2>&1 || true); echo "::notice::Страница админки → HTTP $P"
       - name: Сайт qrstol.ru
         run: |
           for u in https://qrstol.ru/ https://qrstol.ru/partner/ https://qrstol.ru/admin/ https://zerno.qrstol.ru/ https://qrstol.ru/config.js http://qrstol.ru/ https://www.qrstol.ru/; do
