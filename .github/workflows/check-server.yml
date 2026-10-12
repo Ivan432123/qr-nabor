@@ -20,13 +20,13 @@ jobs:
           L=$(curl -sS -m 20 -w ' [HTTP %{http_code}]' -H 'Content-Type: application/json' -d "$BODY" "$API?r=/api/admin/login" 2>&1)
           echo "::notice::Вход (пароль из секрета, длина ${#ADMIN_PASSWORD}) → $(echo "$L" | sed -E 's/"token":"[^"]*"/"token":"…"/')"
           P=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' https://ivan432123.github.io/qr-nabor/admin/ 2>&1); echo "::notice::Страница админки → HTTP $P"
-      - name: Сайты в хранилище (до подключения домена)
+      - name: Сайт qrstol.ru
         run: |
-          for h in qrstol.ru zerno.qrstol.ru; do
-            C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "http://$h.website.yandexcloud.net/" || true)
-            echo "::notice::$h.website.yandexcloud.net → HTTP $C, $(grep -o '<title>[^<]*' /tmp/p.html | head -1)"
+          for u in https://qrstol.ru/ https://qrstol.ru/partner/ https://qrstol.ru/admin/ https://zerno.qrstol.ru/ https://qrstol.ru/config.js http://qrstol.ru/ https://www.qrstol.ru/; do
+            R=$(curl -s -o /tmp/p -w '%{http_code} %{ssl_verify_result}' -m 20 "$u" || echo "ошибка")
+            echo "::notice::$u → $R $(grep -o '<title>[^<]*' /tmp/p 2>/dev/null | head -1)"
           done
-          C=$(curl -s -o /tmp/p.html -w '%{http_code}' -m 20 "http://qrstol.ru.website.yandexcloud.net/IVAN12" || true)
-          echo "::notice::короткая ссылка /IVAN12 → HTTP $C, $(grep -o "ref=' + last" /tmp/p.html | head -1)"
-          NS=$(dig +short NS qrstol.ru @8.8.8.8 | tr '\n' ' '); echo "::notice::NS qrstol.ru: ${NS:-нет}"
-          W=$(whois qrstol.ru 2>/dev/null | grep -iE 'nserver|state|created' | tr '\n' ' ' | cut -c1-300); echo "::notice::whois: ${W:-нет данных}"
+          C=$(curl -s -m 20 https://qrstol.ru/IVAN12 | grep -c "ref=" || true); echo "::notice::короткая ссылка qrstol.ru/IVAN12 → страница-перенаправление: $C"
+          C=$(curl -s -m 20 https://zerno.qrstol.ru/5 | grep -c "location.replace" || true); echo "::notice::zerno.qrstol.ru/5 → перенаправление на стол: $C"
+          E=$(echo | openssl s_client -connect qrstol.ru:443 -servername zerno.qrstol.ru 2>/dev/null | openssl x509 -noout -enddate -ext subjectAltName 2>/dev/null | tr '\n' ' '); echo "::notice::сертификат: $E"
+          echo "::notice::config: $(curl -s -m 20 https://qrstol.ru/config.js | grep -E 'SITE_URL:|PHONE:' | tr -s ' ' | tr '\n' ' ')"
