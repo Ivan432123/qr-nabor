@@ -56,7 +56,7 @@ export const db = {
     ];
     for (const q of ddl) await sql([q]);
     // новые столбцы для уже созданных таблиц (повторно — пропускаем)
-    const columns = [['partners', 'referrer_id', 'Utf8']];
+    const columns = [['partners', 'referrer_id', 'Utf8'], ['leads', 'billing', 'Utf8']];
     for (const [table, col, type] of columns) {
       let has = true;
       try { await sql([`SELECT ${col} FROM ${table} LIMIT 0`]); } catch { has = false; }
@@ -80,13 +80,13 @@ export const db = {
 
   async countLeadsByIp(ih) { return (await rows`SELECT COUNT(*) AS n FROM leads WHERE ip_hash = ${ih}`)[0]?.n || 0; },
   async insertLead(l) {
-    await exec`UPSERT INTO leads (id, created_at, name, cafe, phone, plan, partner_id, status, months, paid_at, ip_hash)
-      VALUES (${l.id}, ${l.created_at}, ${l.name}, ${l.cafe}, ${l.phone}, ${l.plan}, ${l.partner_id}, ${l.status}, ${l.months}, ${l.paid_at}, ${l.ip_hash})`;
+    await exec`UPSERT INTO leads (id, created_at, name, cafe, phone, plan, partner_id, status, months, paid_at, ip_hash, billing)
+      VALUES (${l.id}, ${l.created_at}, ${l.name}, ${l.cafe}, ${l.phone}, ${l.plan}, ${l.partner_id}, ${l.status}, ${l.months}, ${l.paid_at}, ${l.ip_hash}, ${l.billing || 'month'})`;
   },
-  async leadsByPartner(pid) { return rows`SELECT id, created_at, cafe, plan, status, months FROM leads WHERE partner_id = ${pid}`; },
-  async allLeads() { return rows`SELECT id, created_at, name, cafe, phone, plan, partner_id, status, months, paid_at FROM leads`; },
+  async leadsByPartner(pid) { return rows`SELECT id, created_at, cafe, plan, status, months, billing FROM leads WHERE partner_id = ${pid}`; },
+  async allLeads() { return rows`SELECT id, created_at, name, cafe, phone, plan, partner_id, status, months, paid_at, billing FROM leads`; },
   async leadById(id) { return (await rows`SELECT id, status, paid_at FROM leads WHERE id = ${id}`)[0] || null; },
-  async updateLead(id, f) { await exec`UPDATE leads SET status = ${f.status}, plan = ${f.plan}, months = ${f.months}, paid_at = ${f.paid_at} WHERE id = ${id}`; },
+  async updateLead(id, f) { await exec`UPDATE leads SET status = ${f.status}, plan = ${f.plan}, months = ${f.months}, paid_at = ${f.paid_at}, billing = ${f.billing || 'month'} WHERE id = ${id}`; },
 
   async insertPayout(x) {
     await exec`UPSERT INTO payouts (id, partner_id, amount, note, check_received, created_at)

@@ -3,8 +3,9 @@
 // и хранилище db (Яндекс YDB — db-ydb.mjs, в тестах — db-memory.mjs).
 
 export const RATES = {
-  setup: { start: 1500, standard: 2500 },   // 50% от набора
-  monthly: { start: 400, standard: 400 },   // 20% от поддержки: 2 000 ₽/мес у обоих пакетов
+  setup: { start: 3000, standard: 4500 },   // 50% от набора: «Старт» 6 000 ₽, «Стандарт» 9 000 ₽
+  monthly: { start: 300, standard: 300 },   // 20% от поддержки 1 490 ₽/мес
+  monthlyYear: 250,                         // при оплате за год (14 900 ₽ = 1 242 ₽/мес) — 20%
   maxMonths: 24,
   bonusEvery: 5,
   bonus: 2000,
@@ -145,7 +146,8 @@ function leadEarned(l, tiers) {
   const plan = l.plan === 'standard' ? 'standard' : 'start';
   const t = tiers && tiers[l.partner_id];
   const cap = t ? (t.months == null ? Infinity : t.months) : RATES.maxMonths;
-  return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * RATES.monthly[plan];
+  const perMonth = l.billing === 'year' ? RATES.monthlyYear : RATES.monthly[plan];
+  return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * perMonth;
 }
 function summarize(leads, payouts, teamIncome = 0, tiers) {
   const paid = leads.filter(qualified);
@@ -325,7 +327,7 @@ async function me(ctx) {
     partner: { name: p.name, email: p.email, phone: p.phone, code: p.code },
     stats: { ...summarize(leads, payouts, team.income, tiers), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
     daily,
-    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
+    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, billing: l.billing || 'month', earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
     payouts: payouts.map(x => ({ date: x.created_at, amount: x.amount, note: x.note, check: !!x.check_received })),
     tier,
     team: { ...team, invitedBy: inviter ? shortName(inviter.name) : null },
@@ -362,7 +364,7 @@ async function lead(ctx) {
     const p = await db.partnerByCode(code);
     if (p) { partnerId = p.id; break; }
   }
-  await db.insertLead({ id: newId(), created_at: now(), name, cafe, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih });
+  await db.insertLead({ id: newId(), created_at: now(), name, cafe, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih, billing: 'month' });
   return json({ ok: true, withPromo: !!partnerId });
 }
 
@@ -382,7 +384,7 @@ async function adminData(ctx) {
   const clickMap = Object.fromEntries(clicks.map(c => [c.partner_id, c.n]));
   const tiers = tierMap(leads);
   return json({
-    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, phone: l.phone, plan: l.plan, status: l.status, months: l.months,
+    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, phone: l.phone, plan: l.plan, billing: l.billing || 'month', status: l.status, months: l.months,
       partner: pById[l.partner_id]?.code || null, partnerName: pById[l.partner_id]?.name || null, earned: l.partner_id ? leadEarned(l, tiers) : 0 })),
     partners: partners.map(p => {
       const pl = leads.filter(l => l.partner_id === p.id);
@@ -405,8 +407,9 @@ async function adminLead(ctx) {
   const status = STATUSES.includes(b.status) ? b.status : cur.status;
   const plan = PLANS.includes(b.plan) ? b.plan : 'unknown';
   const months = Math.max(0, Math.min(120, parseInt(b.months, 10) || 0));
+  const billing = b.billing === 'year' ? 'year' : 'month';
   const paid_at = status === 'paid' ? (cur.paid_at || now()) : '';
-  await db.updateLead(id, { status, plan, months, paid_at });
+  await db.updateLead(id, { status, plan, months, paid_at, billing });
   return json({ ok: true });
 }
 

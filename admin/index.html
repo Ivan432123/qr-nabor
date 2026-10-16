@@ -91,7 +91,7 @@ td.acts{white-space:nowrap}
       <input id="fSearch" placeholder="Поиск: заведение, имя, телефон, промокод" aria-label="Поиск">
     </div>
     <div class="box"><table id="leadsTbl"></table></div>
-    <p class="muted">«Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется только когда здесь 1 и больше: 50% за набор + 20% за каждый месяц (24 / 36 / без ограничения — по статусу партнёра). Бонус и статусы тоже считаются от 1 месяца.</p>
+    <p class="muted">«Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется только когда здесь 1 и больше: 50% за набор (3 000 / 4 500 ₽) + 300 ₽ за каждый месяц, при оплате за год — 250 ₽ (24 / 36 / без ограничения — по статусу партнёра). Оплатил год — поставьте «За год» и прибавьте 12. Бонус и статусы считаются от 1 месяца.</p>
   </section>
 
   <section data-p="partners" hidden>
@@ -159,7 +159,7 @@ function renderLeads(){
       <td><b>${esc(l.cafe)}</b></td>
       <td>${esc(l.name)}<br><span class="muted" style="user-select:all">${esc(l.phone)}</span></td>
       <td>${l.partner ? esc(l.partner) : '<span class="muted">—</span>'}</td>
-      <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select></td>
+      <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select><select data-f="billing" aria-label="Оплата поддержки" style="margin-top:6px"><option value="month"${l.billing!=='year'?' selected':''}>Помесячно</option><option value="year"${l.billing==='year'?' selected':''}>За год</option></select></td>
       <td><select data-f="status" aria-label="Статус">${Object.entries(ST).map(([k,v])=>`<option value="${k}"${l.status===k?' selected':''}>${v[0]}</option>`).join('')}</select></td>
       <td><input type="number" min="0" max="120" data-f="months" value="${l.months}" aria-label="Месяцев поддержки"></td>
       <td class="num">${l.partner ? rub(l.earned) : '—'}</td>
@@ -191,7 +191,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-save]'); if (!b) return;
   const tr = b.closest('tr'), g = f => tr.querySelector(`[data-f="${f}"]`).value;
   b.disabled = true;
-  try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), months: g('months') }); await load(); toast('Сохранено'); }
+  try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), billing: g('billing'), months: g('months') }); await load(); toast('Сохранено'); }
   catch(err){ toast(err.message); b.disabled = false; }
 });
 document.addEventListener('click', async e => {
