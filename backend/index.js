@@ -4,6 +4,10 @@ let mods, mail;
 module.exports.handler = async function (event, context) {
   mods = mods || await Promise.all([import('./app.mjs'), import('./db-ydb.mjs'), import('./mail.mjs')]);
   const [{ handle }, { db, tokenProvider }, { createMail }] = mods;
+  // секреты приходят в base64, чтобы любые символы пароля доходили без искажений
+  for (const k of ['ADMIN_PASSWORD', 'TOKEN_SECRET']) {
+    if (process.env[k + '_B64'] && !process.env[k]) process.env[k] = Buffer.from(process.env[k + '_B64'], 'base64').toString('utf8');
+  }
   mail = mail || createMail(process.env);
   if (context && context.token && context.token.access_token) tokenProvider.token = context.token.access_token;
   const q = { ...(event.queryStringParameters || {}) };

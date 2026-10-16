@@ -185,8 +185,10 @@ const digits = s => String(s || '').replace(/\D/g, '').slice(-10);
 const byDateDesc = (a, b) => (a.created_at < b.created_at ? 1 : -1);
 
 /* ---------- служебное ---------- */
-async function setup({ req, db, env }) {
-  if (!safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD)) return json({ error: 'Нет доступа' }, 401);
+async function setup(ctx) {
+  const { req, db, env } = ctx;
+  const viaBody = safeEqual(String(ctx.b.password || ''), env.ADMIN_PASSWORD);
+  if (!viaBody && !safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD)) return json({ error: 'Нет доступа' }, 401);
   await db.setup();
   return json({ ok: true });
 }

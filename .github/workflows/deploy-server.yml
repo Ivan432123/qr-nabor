@@ -155,8 +155,8 @@ jobs:
             --service-account-id "$SA_ID" \
             --source-path "$RUNNER_TEMP/fn.zip" \
             --environment "YDB_CONNECTION_STRING=$YDB_EP" \
-            --environment "ADMIN_PASSWORD=$ADMIN_PASSWORD" \
-            --environment "TOKEN_SECRET=$TOKEN_SECRET" \
+            --environment "ADMIN_PASSWORD_B64=$(printf '%s' "$ADMIN_PASSWORD" | base64 -w0)" \
+            --environment "TOKEN_SECRET_B64=$(printf '%s' "$TOKEN_SECRET" | base64 -w0)" \
             "${MAIL_ENV[@]}" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" -e "${SMTP_PASS:-@@none@@}" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
           echo "Версия выложена"
 
@@ -171,7 +171,8 @@ jobs:
             sleep 5
           done
           [ $ok = 1 ] || { echo "::error::Сервер не ответил: $(echo "$R" | cut -c1-600)"; exit 1; }
-          R=$(curl -sS -m 60 -X POST -H "X-Auth: Bearer $ADMIN_PASSWORD" "$URL?r=/api/setup" 2>&1)
+          SB=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
+          R=$(curl -sS -m 60 -X POST -H 'Content-Type: application/json' -d "$SB" "$URL?r=/api/setup" 2>&1)
           echo "$R" | grep -q '"ok":true' || { echo "::error::Создание таблиц: $(echo "$R" | cut -c1-900)"; exit 1; }
           R=$(curl -sS -m 30 "$URL?r=/api/check-code&code=TEST00" 2>&1)
           echo "$R" | grep -q '"valid":false' || { echo "::error::Запрос к базе: $(echo "$R" | cut -c1-900)"; exit 1; }
