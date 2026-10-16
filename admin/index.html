@@ -65,7 +65,8 @@ td.acts{white-space:nowrap}
 <form class="login" id="loginForm">
   <b style="font-size:18px">Вход в админку</b>
   <label for="pw">Пароль администратора</label>
-  <input type="password" id="pw" autocomplete="current-password">
+  <input type="text" name="username" value="admin" autocomplete="username" style="display:none" aria-hidden="true">
+  <input type="password" id="pw" name="admin-password" autocomplete="current-password">
   <p class="err" id="loginErr" hidden></p>
   <button class="btn" type="submit">Войти</button>
 </form>
@@ -129,7 +130,7 @@ $('refreshBtn').onclick = () => load().then(()=>toast('Обновлено'));
 
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault(); $('loginErr').hidden = true;
-  try{ const d = await api('/api/admin/login', { password: $('pw').value }); token = d.token; try{ sessionStorage.setItem(KEY, token); }catch(e){} await load(); }
+  try{ const d = await api('/api/admin/login', { password: $('pw').value.trim() }); token = d.token; try{ sessionStorage.setItem(KEY, token); }catch(e){} await load(); }
   catch(err){ $('loginErr').textContent = err.message; $('loginErr').hidden = false; }
 });
 
