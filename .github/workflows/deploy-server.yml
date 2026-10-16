@@ -118,7 +118,9 @@ jobs:
       - name: База данных nabor-db
         run: |
           fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
-          if ! OUT=$(yc ydb database get nabor-db --format json 2>&1); then
+          for i in 1 2 3 4 5; do OUT=$(yc ydb database get nabor-db --format json 2>&1) && break; echo "$OUT" | grep -qi "not found" && break; echo "Облако не отвечает, повтор $i"; sleep 20; done
+          if ! echo "$OUT" | grep -q '"endpoint"'; then
+            echo "$OUT" | grep -qi "not found" || fail "База недоступна (сбой облака, создавать новую нельзя)" "$OUT"
             echo "Создаю базу"
             OUT=$(yc ydb database create nabor-db --serverless --format json 2>&1) || fail "Создание базы" "$OUT"
             sleep 10
@@ -132,7 +134,9 @@ jobs:
       - name: Функция nabor-api
         run: |
           fail() { echo "::error::$1: $(echo "$2" | tr '\n' ' ' | cut -c1-900)" >&2; exit 1; }
-          if ! OUT=$(yc serverless function get nabor-api --format json 2>&1); then
+          for i in 1 2 3 4 5; do OUT=$(yc serverless function get nabor-api --format json 2>&1) && break; echo "$OUT" | grep -qi "not found" && break; echo "Облако не отвечает, повтор $i"; sleep 20; done
+          if ! echo "$OUT" | grep -q '"id"'; then
+            echo "$OUT" | grep -qi "not found" || fail "Функция недоступна (сбой облака)" "$OUT"
             OUT=$(yc serverless function create nabor-api --description "Партнёрская программа QR-набора" --format json 2>&1) || fail "Создание функции" "$OUT"
           fi
           FID=$(echo "$OUT" | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).id||''))")
