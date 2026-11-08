@@ -3,15 +3,18 @@
 // и хранилище db (Яндекс YDB — db-ydb.mjs, в тестах — db-memory.mjs).
 
 export const RATES = {
-  setup: { start: 3000, standard: 4500 },   // 50% от набора: «Старт» 6 000 ₽, «Стандарт» 9 000 ₽
-  monthly: { start: 300, standard: 300 },   // 20% от поддержки 1 490 ₽/мес
+  setup: { start: 2950, standard: 4450,     // 50% от набора: «Старт» 5 890 ₽, «Стандарт» 8 890 ₽
+           start_promo: 1500, standard_promo: 2250 },  // акция для первых 10 заведений: 2 990 ₽ / 4 490 ₽ (тоже 50%)
+  monthly: { start: 300, standard: 300, start_promo: 300, standard_promo: 300 },   // 20% от поддержки 1 490 ₽/мес
   monthlyYear: 250,                         // при оплате за год (14 900 ₽ = 1 242 ₽/мес) — 20%
   maxMonths: 24,
   bonusEvery: 5,
   bonus: 2000,
   team: [0.10, 0.05]                        // доля от заработка приглашённых партнёров: 1-й и 2-й уровень
 };
-const PLANS = ['start', 'standard', 'unknown'];
+const PLANS = ['start', 'standard', 'start_promo', 'standard_promo', 'unknown'];
+// Акционные пакеты ставит только админ при оплате; с публичной формы и из кабинета их выбрать нельзя
+const PUBLIC_PLANS = ['start', 'standard', 'unknown'];
 const STATUSES = ['new', 'waiting', 'paid', 'lost'];
 
 const CORS = {
@@ -143,7 +146,7 @@ function tierMap(leads) {
 // Начисление по заявке; срок поддержки ограничен статусом партнёра (tiers — карта статусов)
 function leadEarned(l, tiers) {
   if (!qualified(l)) return 0;
-  const plan = l.plan === 'standard' ? 'standard' : 'start';
+  const plan = ['standard', 'start_promo', 'standard_promo'].includes(l.plan) ? l.plan : 'start';
   const t = tiers && tiers[l.partner_id];
   const cap = t ? (t.months == null ? Infinity : t.months) : RATES.maxMonths;
   const perMonth = l.billing === 'year' ? RATES.monthlyYear : RATES.monthly[plan];
@@ -352,7 +355,7 @@ async function click(ctx) {
 async function lead(ctx) {
   const { b, db } = ctx;
   const name = clean(b.name, 80), cafe = clean(b.cafe, 120), phone = clean(b.phone, 30);
-  const plan = PLANS.includes(b.plan) ? b.plan : 'unknown';
+  const plan = PUBLIC_PLANS.includes(b.plan) ? b.plan : 'unknown';
   if (!name || !cafe || phone.replace(/\D/g, '').length < 10) return json({ error: 'Заполните имя, название заведения и телефон' }, 400);
   if (b.website) return json({ ok: true }); // ловушка для ботов
   const ih = await ipHash(ctx);

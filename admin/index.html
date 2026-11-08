@@ -91,7 +91,7 @@ td.acts{white-space:nowrap}
       <input id="fSearch" placeholder="Поиск: заведение, имя, телефон, промокод" aria-label="Поиск">
     </div>
     <div class="box"><table id="leadsTbl"></table></div>
-    <p class="muted">«Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется только когда здесь 1 и больше: 50% за набор (3 000 / 4 500 ₽) + 300 ₽ за каждый месяц, при оплате за год — 250 ₽ (24 / 36 / без ограничения — по статусу партнёра). Оплатил год — поставьте «За год» и прибавьте 12. Бонус и статусы считаются от 1 месяца.</p>
+    <p class="muted">«Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется только когда здесь 1 и больше: 50% за набор (2 950 / 4 450 ₽; в акцию 1 500 / 2 250 ₽) + 300 ₽ за каждый месяц, при оплате за год — 250 ₽ (24 / 36 / без ограничения — по статусу партнёра). Оплатил год — поставьте «За год» и прибавьте 12. Бонус и статусы считаются от 1 месяца.</p>
   </section>
 
   <section data-p="partners" hidden>
@@ -159,7 +159,7 @@ function renderLeads(){
       <td><b>${esc(l.cafe)}</b></td>
       <td>${esc(l.name)}<br><span class="muted" style="user-select:all">${esc(l.phone)}</span></td>
       <td>${l.partner ? esc(l.partner) : '<span class="muted">—</span>'}</td>
-      <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select><select data-f="billing" aria-label="Оплата поддержки" style="margin-top:6px"><option value="month"${l.billing!=='year'?' selected':''}>Помесячно</option><option value="year"${l.billing==='year'?' selected':''}>За год</option></select></td>
+      <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="start_promo"${l.plan==='start_promo'?' selected':''}>Старт — акция (2 990)</option><option value="standard_promo"${l.plan==='standard_promo'?' selected':''}>Стандарт — акция (4 490)</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select><select data-f="billing" aria-label="Оплата поддержки" style="margin-top:6px"><option value="month"${l.billing!=='year'?' selected':''}>Помесячно</option><option value="year"${l.billing==='year'?' selected':''}>За год</option></select></td>
       <td><select data-f="status" aria-label="Статус">${Object.entries(ST).map(([k,v])=>`<option value="${k}"${l.status===k?' selected':''}>${v[0]}</option>`).join('')}</select></td>
       <td><input type="number" min="0" max="120" data-f="months" value="${l.months}" aria-label="Месяцев поддержки"></td>
       <td class="num">${l.partner ? rub(l.earned) : '—'}</td>
