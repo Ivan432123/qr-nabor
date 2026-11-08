@@ -455,6 +455,14 @@ function getInvite(){ try{ const v = JSON.parse(localStorage.getItem(INV_KEY) ||
   if (inv){ $('invNote').textContent = 'Вас пригласил партнёр ' + inv; $('invNote').hidden = false; }
 })();
 
+/* --- метка источника из объявления: ?src=avito-omsk, помним 60 дней, дописывается к полю «Где будете рекомендовать» --- */
+const SRC_KEY = 'nabor_src';
+function getSrc(){ try{ const v = JSON.parse(localStorage.getItem(SRC_KEY) || 'null'); return v && Date.now() - v.t < 60*864e5 ? v.c : ''; }catch(e){ return ''; } }
+(() => {
+  const c = (new URLSearchParams(location.search).get('src') || '').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,30);
+  if (c){ try{ localStorage.setItem(SRC_KEY, JSON.stringify({ c, t: Date.now() })); }catch(e){} history.replaceState(null, '', location.pathname + location.hash); }
+})();
+
 /* --- регистрация / вход --- */
 function mode(m){
   const login = m === 'login';
@@ -468,7 +476,7 @@ $('supPhone').textContent = CFG.PHONE || '';
 function showErr(id, msg){ $(id).textContent = msg; $(id).hidden = false; }
 // Регистрация в два шага: данные → код из письма (если на сервере включена почта)
 let codeStage = false;
-const regBody = withCode => ({ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value, agree:true, pref: getInvite(), ...(withCode ? { emailCode: $('rCode').value.trim() } : {}) });
+const regBody = withCode => ({ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value + (getSrc() ? ' · ' + getSrc() : ''), agree:true, pref: getInvite(), ...(withCode ? { emailCode: $('rCode').value.trim() } : {}) });
 const regLabel = () => codeStage ? 'Подтвердить и зарегистрироваться' : 'Зарегистрироваться';
 async function submitReg(withCode){
   $('regErr').hidden = true;
