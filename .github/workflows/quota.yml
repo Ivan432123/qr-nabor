@@ -1,0 +1,26 @@
+name: Квоты и бакеты
+# Только чтение: показывает, сколько бакетов занято в облаке (лимит по умолчанию 25).
+on: workflow_dispatch
+jobs:
+  q:
+    runs-on: ubuntu-latest
+    env:
+      YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
+      YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+    steps:
+      - name: yc
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /opt/yc -n >/dev/null
+          export PATH=/opt/yc/bin:$PATH
+          printf '%s' "$YC_SA_KEY" > k.json
+          yc config set endpoint api.cloud.yandex.net:443; yc config set service-account-key k.json; yc config set folder-id "$YC_FOLDER_ID"
+          CLOUD=$(yc resource-manager folder get "$YC_FOLDER_ID" --format json | python3 -c "import sys,json;print(json.load(sys.stdin)['cloud_id'])")
+          echo "::notice::облако: $CLOUD"
+          TOTAL=0
+          for F in $(yc resource-manager folder list --cloud-id "$CLOUD" --format json 2>/dev/null | python3 -c "import sys,json;print(' '.join(x['id'] for x in json.load(sys.stdin)))" 2>/dev/null || echo "$YC_FOLDER_ID"); do
+            N=$(yc storage bucket list --folder-id "$F" --format json 2>/dev/null | python3 -c "import sys,json;b=json.load(sys.stdin);print(len(b),','.join(x['name'] for x in b))" 2>/dev/null || echo "нет доступа")
+            echo "::notice::папка $F: $N"
+            C=$(echo "$N" | cut -d' ' -f1); case "$C" in ''|*[!0-9]*) ;; *) TOTAL=$((TOTAL+C));; esac
+          done
+          echo "::notice::ВСЕГО бакетов в видимых папках облака: $TOTAL (лимит 25)"
+          rm -f k.json
