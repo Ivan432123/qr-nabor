@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'backend/**'
+      - 'меню заведений/**'
       - 'README.md'
       - '.github/workflows/deploy-server.yml'
       - '.github/workflows/check-server.yml'
@@ -130,7 +131,7 @@ jobs:
           sleep 5
           for h in $HOSTS; do
             if [ "$h" = "$DOMAIN" ]; then
-              src=.; ex=(--exclude ".git/*" --exclude ".github/*" --exclude "backend/*" --exclude "cafes/*" --exclude "README.md" --exclude ".gitignore")
+              src=.; ex=(--exclude ".git/*" --exclude ".github/*" --exclude "backend/*" --exclude "cafes/*" --exclude "меню заведений/*" --exclude "README.md" --exclude ".gitignore")
             else
               src="cafes/${h%.$DOMAIN}"; ex=()
             fi
