@@ -255,12 +255,12 @@ footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:cent
         <input type="text" id="fWeb" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px">
         <p class="err" id="err" hidden>Заполните имя, название заведения и телефон.</p>
         <button class="btn dark" type="submit" id="sendBtn">Отправить заявку</button>
-        <div class="done" id="sent" hidden><b>Заявка отправлена!</b><span>Я свяжусь с вами в течение дня. Если удобнее — напишите в MAX или позвоните: <span class="contacts" id="contacts2"></span></span></div>
+        <div class="done" id="sent" hidden><b>Заявка отправлена!</b><span>Я свяжусь с вами в течение дня. Если удобнее — напишите мне: <span data-contact-buttons></span></span></div>
         <div class="done" id="done" hidden>
           <b>Не получилось отправить автоматически. Отправьте заявку мне сами:</b>
           <pre id="msg"></pre>
           <button class="btn sun" type="button" id="copyBtn">Скопировать текст</button>
-          <div>MAX и телефон: <span class="contacts" id="contacts"></span></div>
+          <div>Написать мне: <span data-contact-buttons></span></div>
         </div>
       </form>
     </div>
@@ -297,7 +297,7 @@ footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:cent
 const CFG = window.NABOR_CONFIG || {};
 const $ = id => document.getElementById(id);
 $('demoLink').href = CFG.DEMO_URL || '#';
-$('contacts').textContent = CFG.PHONE || ''; $('contacts2').textContent = CFG.PHONE || '';
+
 
 /* --- реф-ссылка партнёра: запоминаем на 60 дней --- */
 const REF_KEY = 'nabor_ref', REF_DAYS = 60;
