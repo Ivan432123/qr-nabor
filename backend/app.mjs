@@ -203,8 +203,9 @@ async function setup(ctx) {
 async function register(ctx) {
   const { b, db, env } = ctx;
   const name = clean(b.name, 80), email = clean(b.email, 120).toLowerCase(), phone = clean(b.phone, 30);
-  const status = clean(b.status, 30), source = clean(b.source, 80), password = String(b.password || '');
+  const status = clean(b.status, 30), source = clean(b.source, 80), city = clean(b.city, 60), password = String(b.password || '');
   if (name.length < 2) return json({ error: 'Укажите имя' }, 400);
+  if (city.length < 2) return json({ error: 'Укажите город, где будете искать клиентов' }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Проверьте email' }, 400);
   if (!isRussianEmail(email)) return json({ error: 'Нужна российская почта: Яндекс, Mail.ru, Рамблер или адрес на домене .ru' }, 400);
   if (!isRussianPhone(phone)) return json({ error: 'Нужен российский номер телефона: +7 и 10 цифр' }, 400);
@@ -244,7 +245,7 @@ async function register(ctx) {
   if (!code) code = base + Date.now().toString().slice(-5);
   const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
   const id = newId();
-  await db.insertPartner({ id, name, email, phone, status, source, code, pass_hash: await hashPassword(password, salt), salt, ip_hash: ih, created_at: now(), referrer_id });
+  await db.insertPartner({ id, name, email, phone, status, source, city, code, pass_hash: await hashPassword(password, salt), salt, ip_hash: ih, created_at: now(), referrer_id });
   return json({ token: await signToken({ role: 'partner', id }, env), code, invited: !!referrer_id });
 }
 
@@ -394,7 +395,7 @@ async function adminData(ctx) {
       const pl = leads.filter(l => l.partner_id === p.id);
       const team = teamFor(p.id, partners, leads, tiers);
       const tier = tiers[p.id] || tierOf([]);
-      return { id: p.id, tier: tier.name, tierMonths: tier.months, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, code: p.code, created_at: p.created_at,
+      return { id: p.id, tier: tier.name, tierMonths: tier.months, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, city: p.city || '', code: p.code, created_at: p.created_at,
         referrer: pById[p.referrer_id]?.code || null, team1: team.level1.length, team2: team.level2.length,
         clicks: clickMap[p.id] || 0, leads: pl.length, ...summarize(pl, payouts.filter(x => x.partner_id === p.id), team.income, tiers) };
     }),

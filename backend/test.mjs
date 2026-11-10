@@ -30,6 +30,7 @@ if (useYdb) {
 // регистрация с кодом из письма
 const lastCode = to => { const m = [...(globalThis.__outbox || [])].reverse().find(x => x.to === to); return m && m.text.match(/\d{6}/)[0]; };
 async function register(body, ip = '1.1.1.1') {
+  body = { city: 'Омск', ...body };
   const first = await call('POST', '/api/register', body, null, ip);
   if (first.status !== 200 || !first.data.needCode) return first;
   return call('POST', '/api/register', { ...body, emailCode: lastCode(body.email) }, null, ip);
@@ -45,13 +46,15 @@ await step('создание таблиц', async () => {
   const r2 = await call('POST', '/api/setup', {}, env.ADMIN_PASSWORD); assert.equal(r2.status, 200, 'повторно: ' + JSON.stringify(r2.data));
 });
 await step('регистрация партнёра', async () => {
-  const bad = await call('POST', '/api/register', { name: 'Иван', email, phone: '+7 900 123-45-67', status: 'Самозанятый', password: '123456' });
+  const noCity = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@mail.ru', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
+  assert.equal(noCity.status, 400); assert.match(noCity.data.error, /город/i, 'город обязателен');
+  const bad = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email, phone: '+7 900 123-45-67', status: 'Самозанятый', password: '123456' });
   assert.equal(bad.status, 400);
-  const gmail = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@gmail.com', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
+  const gmail = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email: 'ivan@gmail.com', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
   assert.equal(gmail.status, 400, 'зарубежная почта не принимается');
-  const foreign = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@mail.ru', phone: '+1 202 555 0100', status: 'ИП', password: '123456', agree: true });
+  const foreign = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email: 'ivan@mail.ru', phone: '+1 202 555 0100', status: 'ИП', password: '123456', agree: true });
   assert.equal(foreign.status, 400, 'зарубежный телефон не принимается');
-  const body = { name: 'Иван Петров', email, phone: '+7 900 123-45-67', status: 'Самозанятый', source: 'Авито', password: 'secret1', agree: true };
+  const body = { name: 'Иван Петров', city: 'Омск', email, phone: '+7 900 123-45-67', status: 'Самозанятый', source: 'Авито', password: 'secret1', agree: true };
   const first = await call('POST', '/api/register', body);
   assert.equal(first.data.needCode, true, 'сначала должен прийти код');
   assert.equal((await call('POST', '/api/register', body)).status, 429, 'повторный код — не раньше чем через минуту');
@@ -59,7 +62,7 @@ await step('регистрация партнёра', async () => {
   const r = await call('POST', '/api/register', { ...body, emailCode: lastCode(email) });
   assert.equal(r.status, 200, JSON.stringify(r.data)); token = r.data.token; code = r.data.code;
   assert.match(code, /^IVAN\d\d/);
-  const dup = await call('POST', '/api/register', { name: 'Иван', email, phone: '+7 900 123-45-67', status: 'ИП', password: 'secret1', agree: true });
+  const dup = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email, phone: '+7 900 123-45-67', status: 'ИП', password: 'secret1', agree: true });
   assert.equal(dup.status, 409);
 });
 await step('вход партнёра', async () => {
@@ -92,6 +95,7 @@ await step('админка видит заявку и партнёра', async (
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
   const l = d.leads.find(x => x.partner === code); assert.ok(l, 'нет заявки партнёра'); leadId = l.id;
   assert.equal(l.status, 'new'); assert.equal(l.partnerName, 'Иван Петров');
+  assert.equal(d.partners.find(x => x.code === code).city, 'Омск', 'город виден в админке');
   const p = d.partners.find(x => x.code === code); assert.equal(p.clicks, 2); assert.equal(p.leads, 1); assert.equal(p.balance, 0);
 });
 await step('оплата: 4450 за набор + 2 мес × 158', async () => {

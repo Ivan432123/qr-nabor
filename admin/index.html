@@ -139,6 +139,8 @@ async function load(){
   $('loginForm').hidden = true; $('app').hidden = false; $('logoutBtn').hidden = false; $('refreshBtn').hidden = false;
   render();
 }
+const SRC_CITIES = {moskva:'Москва',spb:'Санкт-Петербург',novosibirsk:'Новосибирск',ekaterinburg:'Екатеринбург',kazan:'Казань',krasnodar:'Краснодар',rostov:'Ростов-на-Дону',ufa:'Уфа',chelyabinsk:'Челябинск',omsk:'Омск'};
+const cityFromSrc = src => { const m = String(src||'').match(/avito-([a-z-]+)/); return m && SRC_CITIES[m[1]] || ''; };
 const ST = { new:['Новая','p-new'], waiting:['Ожидает оплаты','p-wait'], paid:['Оплачено','p-ok'], lost:['Отказ','p-lost'] };
 
 function render(){
@@ -171,7 +173,7 @@ function renderPartners(){
   $('partnersTbl').innerHTML = P.length ? '<thead><tr><th>Промокод</th><th>Партнёр</th><th>Статус</th><th>Команда</th><th class="num">Переходы</th><th class="num">Заявки</th><th class="num">Оплатили</th><th class="num">Начислено</th><th class="num">Выплачено</th><th class="num">К выплате</th><th>Выплата</th><th></th></tr></thead><tbody>' +
     P.map(p=>`<tr>
       <td><b>${esc(p.code)}</b></td>
-      <td>${esc(p.name)}<br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
+      <td>${esc(p.name)}<br><b>${esc(p.city || cityFromSrc(p.source) || 'город не указан')}</b><br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
       <td><b>${esc(p.tier||'Партнёр')}</b><br>${esc(p.status)}<br><span class="muted">${esc(p.source||'')}</span></td>
       <td>${p.referrer ? 'пригласил ' + esc(p.referrer) : '<span class="muted">сам</span>'}<br><span class="muted">${p.team1||0} / ${p.team2||0} в команде${p.teamIncome ? ' · ' + rub(p.teamIncome) : ''}</span></td>
       <td class="num">${p.clicks}</td><td class="num">${p.leads}</td><td class="num">${p.paidCount}</td>

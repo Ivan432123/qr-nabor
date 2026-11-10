@@ -56,7 +56,7 @@ export const db = {
     ];
     for (const q of ddl) await sql([q]);
     // новые столбцы для уже созданных таблиц (повторно — пропускаем)
-    const columns = [['partners', 'referrer_id', 'Utf8'], ['leads', 'billing', 'Utf8']];
+    const columns = [['partners', 'referrer_id', 'Utf8'], ['partners', 'city', 'Utf8'], ['leads', 'billing', 'Utf8']];
     for (const [table, col, type] of columns) {
       let has = true;
       try { await sql([`SELECT ${col} FROM ${table} LIMIT 0`]); } catch { has = false; }
@@ -69,10 +69,10 @@ export const db = {
   async partnerByCode(code) { return (await rows`SELECT id, code, name, email, phone FROM partners WHERE code = ${code} LIMIT 1`)[0] || null; },
   async partnerById(id) { return (await rows`SELECT id, name, email, phone, status, code, created_at FROM partners WHERE id = ${id}`)[0] || null; },
   async insertPartner(p) {
-    await exec`UPSERT INTO partners (id, name, email, phone, status, source, code, pass_hash, salt, ip_hash, created_at, referrer_id)
-      VALUES (${p.id}, ${p.name}, ${p.email}, ${p.phone}, ${p.status}, ${p.source}, ${p.code}, ${p.pass_hash}, ${p.salt}, ${p.ip_hash}, ${p.created_at}, ${p.referrer_id || ''})`;
+    await exec`UPSERT INTO partners (id, name, email, phone, status, source, code, pass_hash, salt, ip_hash, created_at, referrer_id, city)
+      VALUES (${p.id}, ${p.name}, ${p.email}, ${p.phone}, ${p.status}, ${p.source}, ${p.code}, ${p.pass_hash}, ${p.salt}, ${p.ip_hash}, ${p.created_at}, ${p.referrer_id || ''}, ${p.city || ''})`;
   },
-  async allPartners() { return rows`SELECT id, name, email, phone, status, source, code, created_at, referrer_id FROM partners`; },
+  async allPartners() { return rows`SELECT id, name, email, phone, status, source, code, created_at, referrer_id, city FROM partners`; },
 
   async addClick(pid, day, ih) { await exec`UPSERT INTO clicks (partner_id, day, ip_hash) VALUES (${pid}, ${day}, ${ih})`; },
   async clicksByPartnerSince(pid, from) { return rows`SELECT day, COUNT(*) AS n FROM clicks WHERE partner_id = ${pid} AND day >= ${from} GROUP BY day`; },

@@ -255,6 +255,7 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <div><label for="rPhone">Телефон для выплат по СБП</label><input type="tel" id="rPhone" autocomplete="tel" placeholder="+7 900 000-00-00"><div class="hint">Российский номер, к которому привязан ваш банк. На него переводим вознаграждение через СБП и по нему связываемся.</div></div>
           <div><label for="rPass">Придумайте пароль</label><input type="password" id="rPass" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
           <div><label for="rStatus">Статус</label><select id="rStatus"><option>Самозанятый</option><option>ИП</option></select></div>
+          <div><label for="rCity">Город, где будете искать клиентов</label><input type="text" id="rCity" autocomplete="address-level2" placeholder="Например, Омск"></div>
           <div><label for="rSrc">Где будете рекомендовать</label><select id="rSrc"><option>Знакомые владельцы заведений</option><option>Свой сайт или блог</option><option>Сообщества ВК и MAX</option><option>Реклама с маркировкой</option></select></div>
           <label class="check"><input type="checkbox" id="rAgree"><span>Принимаю условия партнёрской оферты</span></label>
           <div class="codebox" id="codeBox" hidden>
@@ -457,11 +458,15 @@ function getInvite(){ try{ const v = JSON.parse(localStorage.getItem(INV_KEY) ||
 
 /* --- метка источника из объявления: ?src=avito-omsk, помним 60 дней, дописывается к полю «Где будете рекомендовать» --- */
 const SRC_KEY = 'nabor_src';
+const SRC_CITIES = {moskva:'Москва',spb:'Санкт-Петербург',novosibirsk:'Новосибирск',ekaterinburg:'Екатеринбург',kazan:'Казань',krasnodar:'Краснодар',rostov:'Ростов-на-Дону',ufa:'Уфа',chelyabinsk:'Челябинск',omsk:'Омск'};
 function getSrc(){ try{ const v = JSON.parse(localStorage.getItem(SRC_KEY) || 'null'); return v && Date.now() - v.t < 60*864e5 ? v.c : ''; }catch(e){ return ''; } }
 (() => {
   const c = (new URLSearchParams(location.search).get('src') || '').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,30);
   if (c){ try{ localStorage.setItem(SRC_KEY, JSON.stringify({ c, t: Date.now() })); }catch(e){} history.replaceState(null, '', location.pathname + location.hash); }
 })();
+
+/* город из метки объявления: avito-omsk → Омск */
+{ const t=(getSrc()||'').replace(/^avito-/,''); if (SRC_CITIES[t]) $('rCity').value = SRC_CITIES[t]; }
 
 /* --- регистрация / вход --- */
 function mode(m){
@@ -476,7 +481,7 @@ $('swReg').onclick = () => mode('reg'); $('swLogin').onclick = () => mode('login
 function showErr(id, msg){ $(id).textContent = msg; $(id).hidden = false; }
 // Регистрация в два шага: данные → код из письма (если на сервере включена почта)
 let codeStage = false;
-const regBody = withCode => ({ name:$('rName').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value + (getSrc() ? ' · ' + getSrc() : ''), agree:true, pref: getInvite(), ...(withCode ? { emailCode: $('rCode').value.trim() } : {}) });
+const regBody = withCode => ({ name:$('rName').value, city:$('rCity').value, email:$('rEmail').value, phone:$('rPhone').value, password:$('rPass').value, status:$('rStatus').value, source:$('rSrc').value + (getSrc() ? ' · ' + getSrc() : ''), agree:true, pref: getInvite(), ...(withCode ? { emailCode: $('rCode').value.trim() } : {}) });
 const regLabel = () => codeStage ? 'Подтвердить и зарегистрироваться' : 'Зарегистрироваться';
 async function submitReg(withCode){
   $('regErr').hidden = true;
