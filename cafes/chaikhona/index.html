@@ -53,6 +53,9 @@ h2.sec{font-family:var(--display);font-weight:600;font-size:18px;margin:22px 16p
 .card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0}
 .thumb{height:100px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover}
+.ph{background-image:radial-gradient(circle at 25% 20%,rgba(255,255,255,.75),rgba(255,255,255,0) 55%),radial-gradient(circle,rgba(255,255,255,.55) 1.6px,transparent 2px),linear-gradient(135deg,rgba(255,255,255,.35),rgba(0,0,0,.06));background-size:auto,14px 14px,auto}
+.medal{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.82);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(40,30,20,.14),inset 0 0 0 2px rgba(255,255,255,.9)}
+.big-thumb .medal{width:112px;height:112px}
 .tag{position:absolute;left:8px;top:8px;background:var(--coral);color:#2A1C14;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}
 .card .n{font-weight:800;font-size:15px}
 .card .d{font-size:12px;color:var(--muted)}
@@ -206,8 +209,8 @@ const PROMO = { id: 'promo', name: '—', desc: '', price: 0, bg: '#FBF3E4', ink
 /* ===== конец настроек ===== */
 
 const ICONS = {
-  cup: '<path d="M5 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M9 3v3M13 3v3"/>',
-  tea: '<path d="M4 10h14v3a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6z"/><path d="M18 11h1.5a2.5 2.5 0 0 1 0 5H18"/><path d="M11 3c0 2 2 2 2 4"/>',
+  cup: '<path d="M4 9h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M2.5 21h16"/><path d="M7 3.5c-.8 1 .8 1.6 0 3M11 3.5c-.8 1 .8 1.6 0 3"/>',
+  tea: '<path d="M6 10h10a1 1 0 0 1 1 1v3a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5v-3a1 1 0 0 1 1-1z"/><path d="M5 10c0-1.5 2-2 6-2s6 .5 6 2"/><path d="M17 12h2a2 2 0 0 1 0 4h-2.3"/><path d="M11 8V5.5M9.5 5.5h3"/><path d="M3 21h16"/>',
   cake: '<path d="M4 20h16v-7H4z"/><path d="M4 15c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 4 0"/><path d="M12 13V9M12 6v.01"/>',
   bowl: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>',
   skewer: '<path d="M3 21 21 3"/><rect x="6" y="9" width="5" height="5" rx="1.2" transform="rotate(-45 8.5 11.5)"/><rect x="11" y="4" width="5" height="5" rx="1.2" transform="rotate(-45 13.5 6.5)"/>',
@@ -217,7 +220,8 @@ const ICONS = {
 const svg = (name, color, size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.plate}</svg>`;
 const rub = n => n.toLocaleString('ru-RU') + ' ₽';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const thumb = (it, size) => it.photo ? `<img src="${esc(it.photo)}" alt="">` : svg(it.icon, it.ink, size);
+const thumb = (it, size) => it.photo ? `<img src="${esc(it.photo)}" alt="">` : `<span class="medal">${svg(it.icon, it.ink, Math.round(size * .72))}</span>`;
+const phc = it => it.photo ? '' : ' ph';
 
 const tableMatch = (location.hash || '').match(/\d+/);
 const TABLE = tableMatch ? tableMatch[0] : CAFE.defaultTable;
@@ -241,7 +245,7 @@ function renderMenu() {
   const items = MENU.filter(i => i.cat === activeCat);
   document.getElementById('menu').innerHTML = `<h2 class="sec">${esc(cat.name)}</h2><div class="grid">` + items.map(it => `
     <button class="card" type="button" data-open="${it.id}" aria-label="${esc(it.name)}, ${rub(it.price)}">
-      <div class="thumb" style="background:${it.bg}">${thumb(it, 46)}${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ''}</div>
+      <div class="thumb${phc(it)}" style="background-color:${it.bg}">${thumb(it, 46)}${it.tag ? `<span class="tag">${esc(it.tag)}</span>` : ''}</div>
       <span class="n">${esc(it.name)}</span>
       <span class="d">${esc(it.desc)}</span>
       <span class="row"><span class="price">${it.sizes ? 'от ' : ''}${rub(it.price)}</span>
@@ -274,7 +278,7 @@ function openDish(id) {
   pick = pick && pick.id === id ? pick : { id, size: 0, extras: [], qty: 1 };
   const u = unitPrice(it, pick);
   openSheet(`
-    <div class="big-thumb" style="background:${it.bg}">${thumb(it, 96)}</div>
+    <div class="big-thumb${phc(it)}" style="background-color:${it.bg}">${thumb(it, 96)}</div>
     <h3>${esc(it.name)}</h3><div style="color:var(--muted)">${esc(it.desc)}</div>
     ${it.sizes ? `<div class="lbl">Объём</div><div class="seg">${it.sizes.map((s, i) =>
       `<button type="button" data-size="${i}" aria-pressed="${i === pick.size}">${esc(s.label)}</button>`).join('')}</div>` : ''}
