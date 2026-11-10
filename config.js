@@ -10,7 +10,7 @@ window.NABOR_CONFIG = {
   CONTACTS: {
     whatsapp: '',   // например https://wa.me/79236885501
     telegram: 'https://t.me/ivan55366',   // лучше https://t.me/ваш_ник (по номеру работает, если в Telegram разрешён поиск по номеру)
-    max: '',        // ссылка на ваш профиль в MAX
+    max: 'https://max.ru/u/f9LHodD0cOIPMRqrsvSdQufaBFg-tYNjLJu1U8a7lNCOjuCbU1JbQpHYpVw',  // ссылка на ваш профиль в MAX
     avito: ''       // ссылка на ваш профиль на Авито
   },
   // Живой пример QR-меню.
