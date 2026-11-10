@@ -5,7 +5,7 @@ window.NABOR_CONFIG = {
   // Адрес главной страницы набора (GitHub Pages) — на него ведут реф-ссылки партнёров.
   SITE_URL: 'https://qrstol.ru/',
   // Ваш телефон / MAX — показывается клиентам.
-  PHONE: '+7 900 000-00-00',
+  PHONE: '+7 977 917-25-43',
   // Живой пример QR-меню.
   DEMO_URL: 'https://zerno.qrstol.ru/#5'
 };
