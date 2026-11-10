@@ -165,7 +165,7 @@ await step('статусы: 5 кафе за 3 месяца → «Профи», �
   assert.equal(me.tier.key, 'pro'); assert.equal(me.tier.months, 36);
   assert.equal(me.tier.next.key, 'amb'); assert.equal(me.tier.next.left, 15);
   assert.equal(me.stats.fromLeads, 2950 + 30 * 158 + 4 * 3108, '«Профи» — до 36 месяцев, в том числе по старым клиентам');
-  assert.equal(me.stats.bonus, 2000);
+  assert.equal(me.stats.bonus, undefined, 'бонус за каждое 5-е заведение убран');
   const pa = (await call('GET', '/api/admin/data', null, admin)).data.partners.find(x => x.code === pc);
   assert.equal(pa.tier, 'Профи');
   // оплата поддержки за год: 132 ₽ за месяц вместо 158

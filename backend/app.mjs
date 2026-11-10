@@ -8,8 +8,6 @@ export const RATES = {
   monthly: { start: 158, standard: 158, start_promo: 158, standard_promo: 158 },   // 20% от поддержки 790 ₽/мес (поддержка необязательна)
   monthlyYear: 132,                         // при оплате за год (7 900 ₽ ≈ 658 ₽/мес) — 20%
   maxMonths: 24,
-  bonusEvery: 5,
-  bonus: 2000,
   team: [0.10, 0.05]                        // доля от заработка приглашённых партнёров: 1-й и 2-й уровень
 };
 const PLANS = ['start', 'standard', 'start_promo', 'standard_promo', 'unknown'];
@@ -161,16 +159,14 @@ function leadEarned(l, tiers) {
 }
 function summarize(leads, payouts, teamIncome = 0, tiers) {
   const paid = leads.filter(qualified);
-  const bonus = Math.floor(paid.length / RATES.bonusEvery) * RATES.bonus;
   const fromLeads = paid.reduce((s, l) => s + leadEarned(l, tiers), 0);
-  const earned = fromLeads + bonus + teamIncome;
+  const earned = fromLeads + teamIncome;
   const paidOut = payouts.reduce((s, p) => s + Number(p.amount), 0);
-  return { paidCount: paid.length, fromLeads, bonus, teamIncome, earned, paidOut, balance: earned - paidOut,
-           nextBonusIn: RATES.bonusEvery - (paid.length % RATES.bonusEvery) };
+  return { paidCount: paid.length, fromLeads, teamIncome, earned, paidOut, balance: earned - paidOut };
 }
 const shortName = n => { const [a = '', b = ''] = String(n || '').trim().split(/\s+/); return b ? `${a} ${b[0]}.` : a; };
 // Команда партнёра: приглашённые им (1-й уровень) и приглашённые ими (2-й уровень).
-// Доля считается только с заработка за подключённые кафе — без бонусов и без их собственной команды.
+// Доля считается только с заработка за подключённые кафе — без их собственной команды.
 function teamFor(pid, partners, leads, tiers = tierMap(leads)) {
   const own = {};
   for (const l of leads) if (l.partner_id) own[l.partner_id] = (own[l.partner_id] || 0) + leadEarned(l, tiers);
