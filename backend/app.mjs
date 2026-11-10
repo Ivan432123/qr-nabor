@@ -5,8 +5,8 @@
 export const RATES = {
   setup: { start: 2950, standard: 4450,     // 50% от набора: «Старт» 5 890 ₽, «Стандарт» 8 890 ₽
            start_promo: 1500, standard_promo: 2250 },  // акция для первых 10 заведений: 2 990 ₽ / 4 490 ₽ (тоже 50%)
-  monthly: { start: 300, standard: 300, start_promo: 300, standard_promo: 300 },   // 20% от поддержки 1 490 ₽/мес
-  monthlyYear: 250,                         // при оплате за год (14 900 ₽ = 1 242 ₽/мес) — 20%
+  monthly: { start: 158, standard: 158, start_promo: 158, standard_promo: 158 },   // 20% от поддержки 790 ₽/мес (поддержка необязательна)
+  monthlyYear: 132,                         // при оплате за год (7 900 ₽ ≈ 658 ₽/мес) — 20%
   maxMonths: 24,
   bonusEvery: 5,
   bonus: 2000,
@@ -125,7 +125,8 @@ function bestWindow(dates, days) {
   return best;
 }
 // Заведение «оплачено» для партнёра, когда оплачены набор и хотя бы 1 месяц поддержки
-const qualified = l => l.status === 'paid' && (Number(l.months) || 0) >= 1;
+// Заведение засчитано, когда оплатило набор. Поддержка необязательна: 20% идёт за каждый оплаченный месяц (months), если клиент подписан
+const qualified = l => l.status === 'paid';
 function tierOf(leads) {
   const dates = leads.filter(qualified).map(l => Date.parse(l.paid_at || l.created_at)).filter(n => !isNaN(n)).sort((a, b) => a - b);
   let cur = TIERS[0];
