@@ -30,7 +30,6 @@ if (useYdb) {
 // регистрация с кодом из письма
 const lastCode = to => { const m = [...(globalThis.__outbox || [])].reverse().find(x => x.to === to); return m && m.text.match(/\d{6}/)[0]; };
 async function register(body, ip = '1.1.1.1') {
-  body = { city: 'Омск', ...body };
   const first = await call('POST', '/api/register', body, null, ip);
   if (first.status !== 200 || !first.data.needCode) return first;
   return call('POST', '/api/register', { ...body, emailCode: lastCode(body.email) }, null, ip);
@@ -46,8 +45,6 @@ await step('создание таблиц', async () => {
   const r2 = await call('POST', '/api/setup', {}, env.ADMIN_PASSWORD); assert.equal(r2.status, 200, 'повторно: ' + JSON.stringify(r2.data));
 });
 await step('регистрация партнёра', async () => {
-  const noCity = await call('POST', '/api/register', { name: 'Иван', email: 'ivan@mail.ru', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
-  assert.equal(noCity.status, 400); assert.match(noCity.data.error, /город/i, 'город обязателен');
   const bad = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email, phone: '+7 900 123-45-67', status: 'Самозанятый', password: '123456' });
   assert.equal(bad.status, 400);
   const gmail = await call('POST', '/api/register', { name: 'Иван', city: 'Омск', email: 'ivan@gmail.com', phone: '+7 900 123-45-67', status: 'ИП', password: '123456', agree: true });
@@ -81,7 +78,7 @@ await step('переходы по ссылке (повтор с того же IP
 });
 await step('заявка от кафе', async () => {
   assert.equal((await call('POST', '/api/lead', { name: 'Анна', cafe: 'Зерно', phone: '123' })).status, 400);
-  const r = await call('POST', '/api/lead', { name: 'Анна', cafe: 'Кафе «Зерно»', phone: '+7 913 000-00-00', plan: 'standard', ref: code }, null, '2.2.2.2');
+  const r = await call('POST', '/api/lead', { name: 'Анна', cafe: 'Кафе «Зерно»', city: 'Омск', phone: '+7 913 000-00-00', plan: 'standard', ref: code }, null, '2.2.2.2');
   assert.equal(r.status, 200); assert.equal(r.data.withPromo, true);
   const r2 = await call('POST', '/api/lead', { name: 'Олег', cafe: 'Без партнёра', phone: '+7 913 111-11-11', plan: 'start' }, null, '4.4.4.4');
   assert.equal(r2.data.withPromo, false);
@@ -95,7 +92,8 @@ await step('админка видит заявку и партнёра', async (
   const d = (await call('GET', '/api/admin/data', null, admin)).data;
   const l = d.leads.find(x => x.partner === code); assert.ok(l, 'нет заявки партнёра'); leadId = l.id;
   assert.equal(l.status, 'new'); assert.equal(l.partnerName, 'Иван Петров');
-  assert.equal(d.partners.find(x => x.code === code).city, 'Омск', 'город виден в админке');
+  assert.deepEqual(d.partners.find(x => x.code === code).cities, [{ city: 'Омск', n: 1 }], 'города заявок партнёра видны в админке');
+  assert.equal(d.leads.find(l => l.cafe === 'Кафе «Зерно»').city, 'Омск', 'город заявки виден в админке');
   const p = d.partners.find(x => x.code === code); assert.equal(p.clicks, 2); assert.equal(p.leads, 1); assert.equal(p.balance, 0);
 });
 await step('оплата: 4450 за набор + 2 мес × 158', async () => {

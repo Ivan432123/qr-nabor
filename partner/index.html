@@ -255,7 +255,7 @@ input[type=password]{width:100%;min-height:48px;border:1px solid var(--line);bor
           <div><label for="rPhone">Телефон для выплат по СБП</label><input type="tel" id="rPhone" autocomplete="tel" placeholder="+7 900 000-00-00"><div class="hint">Российский номер, к которому привязан ваш банк. На него переводим вознаграждение через СБП и по нему связываемся.</div></div>
           <div><label for="rPass">Придумайте пароль</label><input type="password" id="rPass" autocomplete="new-password" placeholder="Не короче 6 символов"></div>
           <div><label for="rStatus">Статус</label><select id="rStatus"><option>Самозанятый</option><option>ИП</option></select></div>
-          <div><label for="rCity">Город, где будете искать клиентов</label><input type="text" id="rCity" autocomplete="address-level2" placeholder="Например, Омск"></div>
+          <div><label for="rCity">Город (необязательно)</label><input type="text" id="rCity" autocomplete="address-level2" placeholder="Например, Омск"><div class="hint">Можно оставить пустым: город каждого клиента виден в его заявке</div></div>
           <div><label for="rSrc">Где будете рекомендовать</label><select id="rSrc"><option>Знакомые владельцы заведений</option><option>Свой сайт или блог</option><option>Сообщества ВК и MAX</option><option>Реклама с маркировкой</option></select></div>
           <label class="check"><input type="checkbox" id="rAgree"><span>Принимаю условия партнёрской оферты</span></label>
           <div class="codebox" id="codeBox" hidden>
@@ -577,7 +577,7 @@ function render(d){
 
   $('clientsTbl').innerHTML = d.leads.length
     ? '<thead><tr><th>Дата заявки</th><th>Заведение</th><th>Пакет</th><th>Статус</th><th class="num">Вам начислено</th></tr></thead><tbody>' +
-      d.leads.map(l=>`<tr><td>${fmtDate(l.date)}</td><td><b>${esc(l.cafe)}</b></td><td>${PL[l.plan]||'—'}</td><td><span class="pill ${ST[l.status][1]}">${ST[l.status][0]}</span></td><td class="num">${l.earned?rub(l.earned):l.pending?'<span class="muted" style="font-size:13px">после 1-го месяца поддержки</span>':'—'}</td></tr>`).join('') + '</tbody>'
+      d.leads.map(l=>`<tr><td>${fmtDate(l.date)}</td><td><b>${esc(l.cafe)}</b>${l.city?`<br><span class="muted" style="font-size:13px">${esc(l.city)}</span>`:''}</td><td>${PL[l.plan]||'—'}</td><td><span class="pill ${ST[l.status][1]}">${ST[l.status][0]}</span></td><td class="num">${l.earned?rub(l.earned):l.pending?'<span class="muted" style="font-size:13px">после 1-го месяца поддержки</span>':'—'}</td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td style="color:var(--muted)">Заявок пока нет. Отправьте ссылку первым владельцам кафе.</td></tr></tbody>';
   $('payTbl').innerHTML = d.payouts.length
     ? '<thead><tr><th>Дата</th><th>Комментарий</th><th>Чек</th><th class="num">Сумма</th></tr></thead><tbody>' +

@@ -139,6 +139,12 @@ function tierOf(leads) {
   }
   return { key: cur.key, name: cur.name, months: cur.months, next: progress };
 }
+// города заявок партнёра: [{ city, n }], по убыванию
+function cityCounts(ls) {
+  const m = {};
+  for (const l of ls) { const c = String(l.city || '').trim(); if (c) m[c] = (m[c] || 0) + 1; }
+  return Object.entries(m).map(([city, n]) => ({ city, n })).sort((a, b) => b.n - a.n);
+}
 function tierMap(leads) {
   const by = {};
   for (const l of leads) if (l.partner_id) (by[l.partner_id] = by[l.partner_id] || []).push(l);
@@ -205,7 +211,6 @@ async function register(ctx) {
   const name = clean(b.name, 80), email = clean(b.email, 120).toLowerCase(), phone = clean(b.phone, 30);
   const status = clean(b.status, 30), source = clean(b.source, 80), city = clean(b.city, 60), password = String(b.password || '');
   if (name.length < 2) return json({ error: 'Укажите имя' }, 400);
-  if (city.length < 2) return json({ error: 'Укажите город, где будете искать клиентов' }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Проверьте email' }, 400);
   if (!isRussianEmail(email)) return json({ error: 'Нужна российская почта: Яндекс, Mail.ru, Рамблер или адрес на домене .ru' }, 400);
   if (!isRussianPhone(phone)) return json({ error: 'Нужен российский номер телефона: +7 и 10 цифр' }, 400);
@@ -332,7 +337,7 @@ async function me(ctx) {
     partner: { name: p.name, email: p.email, phone: p.phone, code: p.code },
     stats: { ...summarize(leads, payouts, team.income, tiers), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
     daily,
-    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, plan: l.plan, status: l.status, months: l.months, billing: l.billing || 'month', earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
+    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, city: l.city || '', plan: l.plan, status: l.status, months: l.months, billing: l.billing || 'month', earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
     payouts: payouts.map(x => ({ date: x.created_at, amount: x.amount, note: x.note, check: !!x.check_received })),
     tier,
     team: { ...team, invitedBy: inviter ? shortName(inviter.name) : null },
@@ -356,7 +361,7 @@ async function click(ctx) {
 
 async function lead(ctx) {
   const { b, db } = ctx;
-  const name = clean(b.name, 80), cafe = clean(b.cafe, 120), phone = clean(b.phone, 30);
+  const name = clean(b.name, 80), cafe = clean(b.cafe, 120), phone = clean(b.phone, 30), city = clean(b.city, 60);
   const plan = PUBLIC_PLANS.includes(b.plan) ? b.plan : 'unknown';
   if (!name || !cafe || phone.replace(/\D/g, '').length < 10) return json({ error: 'Заполните имя, название заведения и телефон' }, 400);
   if (b.website) return json({ ok: true }); // ловушка для ботов
@@ -369,7 +374,7 @@ async function lead(ctx) {
     const p = await db.partnerByCode(code);
     if (p) { partnerId = p.id; break; }
   }
-  await db.insertLead({ id: newId(), created_at: now(), name, cafe, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih, billing: 'month' });
+  await db.insertLead({ id: newId(), created_at: now(), name, cafe, city, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih, billing: 'month' });
   return json({ ok: true, withPromo: !!partnerId });
 }
 
@@ -389,13 +394,13 @@ async function adminData(ctx) {
   const clickMap = Object.fromEntries(clicks.map(c => [c.partner_id, c.n]));
   const tiers = tierMap(leads);
   return json({
-    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, phone: l.phone, plan: l.plan, billing: l.billing || 'month', status: l.status, months: l.months,
+    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, city: l.city || '', phone: l.phone, plan: l.plan, billing: l.billing || 'month', status: l.status, months: l.months,
       partner: pById[l.partner_id]?.code || null, partnerName: pById[l.partner_id]?.name || null, earned: l.partner_id ? leadEarned(l, tiers) : 0 })),
     partners: partners.map(p => {
       const pl = leads.filter(l => l.partner_id === p.id);
       const team = teamFor(p.id, partners, leads, tiers);
       const tier = tiers[p.id] || tierOf([]);
-      return { id: p.id, tier: tier.name, tierMonths: tier.months, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, city: p.city || '', code: p.code, created_at: p.created_at,
+      return { id: p.id, tier: tier.name, tierMonths: tier.months, name: p.name, email: p.email, phone: p.phone, status: p.status, source: p.source, city: p.city || '', cities: cityCounts(pl), code: p.code, created_at: p.created_at,
         referrer: pById[p.referrer_id]?.code || null, team1: team.level1.length, team2: team.level2.length,
         clicks: clickMap[p.id] || 0, leads: pl.length, ...summarize(pl, payouts.filter(x => x.partner_id === p.id), team.income, tiers) };
     }),

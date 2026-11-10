@@ -158,7 +158,7 @@ function renderLeads(){
   $('leadsTbl').innerHTML = rows.length ? '<thead><tr><th>Дата</th><th>Заведение</th><th>Контакт</th><th>Партнёр</th><th>Пакет</th><th>Статус</th><th>Мес. поддержки</th><th class="num">Партнёру</th><th></th></tr></thead><tbody>' +
     rows.map(l=>`<tr data-id="${l.id}">
       <td>${fmt(l.date)}</td>
-      <td><b>${esc(l.cafe)}</b></td>
+      <td><b>${esc(l.cafe)}</b><br><span class="muted">${esc(l.city||'город не указан')}</span></td>
       <td>${esc(l.name)}<br><span class="muted" style="user-select:all">${esc(l.phone)}</span></td>
       <td>${l.partner ? esc(l.partner) : '<span class="muted">—</span>'}</td>
       <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="start_promo"${l.plan==='start_promo'?' selected':''}>Старт — акция (2 990)</option><option value="standard_promo"${l.plan==='standard_promo'?' selected':''}>Стандарт — акция (4 490)</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select><select data-f="billing" aria-label="Оплата поддержки" style="margin-top:6px"><option value="month"${l.billing!=='year'?' selected':''}>Помесячно</option><option value="year"${l.billing==='year'?' selected':''}>За год</option></select></td>
@@ -173,7 +173,7 @@ function renderPartners(){
   $('partnersTbl').innerHTML = P.length ? '<thead><tr><th>Промокод</th><th>Партнёр</th><th>Статус</th><th>Команда</th><th class="num">Переходы</th><th class="num">Заявки</th><th class="num">Оплатили</th><th class="num">Начислено</th><th class="num">Выплачено</th><th class="num">К выплате</th><th>Выплата</th><th></th></tr></thead><tbody>' +
     P.map(p=>`<tr>
       <td><b>${esc(p.code)}</b></td>
-      <td>${esc(p.name)}<br><b>${esc(p.city || cityFromSrc(p.source) || 'город не указан')}</b><br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
+      <td>${esc(p.name)}<br><b>${(p.cities||[]).length ? p.cities.map(c=>esc(c.city)+' ×'+c.n).join(', ') : esc(p.city || cityFromSrc(p.source) || 'городов пока нет')}</b><br><span class="muted" style="user-select:all">${esc(p.phone)}</span><br><span class="muted">${esc(p.email)}</span></td>
       <td><b>${esc(p.tier||'Партнёр')}</b><br>${esc(p.status)}<br><span class="muted">${esc(p.source||'')}</span></td>
       <td>${p.referrer ? 'пригласил ' + esc(p.referrer) : '<span class="muted">сам</span>'}<br><span class="muted">${p.team1||0} / ${p.team2||0} в команде${p.teamIncome ? ' · ' + rub(p.teamIncome) : ''}</span></td>
       <td class="num">${p.clicks}</td><td class="num">${p.leads}</td><td class="num">${p.paidCount}</td>

@@ -253,13 +253,14 @@ footer{padding-block:36px 48px;color:var(--muted);font-size:14px;text-align:cent
       <form id="leadForm" novalidate>
         <div><label for="fName">Ваше имя</label><input id="fName" autocomplete="name"></div>
         <div><label for="fCafe">Название заведения</label><input id="fCafe"></div>
+        <div><label for="fCity">Город</label><input id="fCity" autocomplete="address-level2" placeholder="Например, Омск"></div>
         <div><label for="fPhone">Телефон</label><input id="fPhone" type="tel" autocomplete="tel" inputmode="tel"></div>
         <div><label for="fPlan">Пакет</label>
           <select id="fPlan"><option>Старт</option><option>Стандарт</option><option>Пока не знаю</option></select></div>
         <div><label for="fPromo">Промокод партнёра</label><input id="fPromo" placeholder="Например, ANNA25" autocapitalize="characters">
           <div class="promo-hint">Необязательно</div></div>
         <input type="text" id="fWeb" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px">
-        <p class="err" id="err" hidden>Заполните имя, название заведения и телефон.</p>
+        <p class="err" id="err" hidden>Заполните имя, город, название заведения и телефон.</p>
         <button class="btn dark" type="submit" id="sendBtn">Отправить заявку</button>
         <div class="done" id="sent" hidden><b>Заявка отправлена!</b><span>Я свяжусь с вами в течение дня. Если удобнее — напишите мне: <span data-contact-buttons></span></span></div>
         <div class="done" id="done" hidden>
@@ -323,20 +324,20 @@ if (ref) { $('fPromo').value = ref; $('fPromo').readOnly = true; $('fPromo').sty
 function planValue(){ const v = $('fPlan').value; return v === 'Старт' ? 'start' : v === 'Стандарт' ? 'standard' : 'unknown'; }
 $('leadForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const name=$('fName').value.trim(), cafe=$('fCafe').value.trim(), phone=$('fPhone').value.trim();
-  if(!name||!cafe||phone.replace(/\D/g,'').length<10){ $('err').textContent='Заполните имя, название заведения и телефон.'; $('err').hidden=false; return; }
+  const name=$('fName').value.trim(), cafe=$('fCafe').value.trim(), city=$('fCity').value.trim(), phone=$('fPhone').value.trim();
+  if(!name||!cafe||!city||phone.replace(/\D/g,'').length<10){ $('err').textContent='Заполните имя, город, название заведения и телефон.'; $('err').hidden=false; return; }
   $('err').hidden=true;
   const promo=$('fPromo').value.trim().toUpperCase();
   const btn=$('sendBtn'); btn.disabled=true; btn.textContent='Отправляю…';
   try{
     const r = await fetch(naborApi('/api/lead'), { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, cafe, phone, plan: planValue(), promo, ref: getRef(), website: $('fWeb').value }) });
+      body: JSON.stringify({ name, cafe, city, phone, plan: planValue(), promo, ref: getRef(), website: $('fWeb').value }) });
     const d = await r.json().catch(()=>({}));
     if (!r.ok) throw new Error(d.error || 'Ошибка');
     $('sent').hidden=false; btn.hidden=true;
-    ['fName','fCafe','fPhone','fPlan','fPromo'].forEach(id=>$(id).disabled=true);
+    ['fName','fCafe','fCity','fPhone','fPlan','fPromo'].forEach(id=>$(id).disabled=true);
   }catch(err){
-    const text=`Здравствуйте! Заявка на «Цифровой набор для кафе».\nИмя: ${name}\nЗаведение: ${cafe}\nТелефон: ${phone}\nПакет: ${$('fPlan').value}` + (promo?`\nПромокод: ${promo}`:'');
+    const text=`Здравствуйте! Заявка на «Цифровой набор для кафе».\nИмя: ${name}\nЗаведение: ${cafe}\nГород: ${city}\nТелефон: ${phone}\nПакет: ${$('fPlan').value}` + (promo?`\nПромокод: ${promo}`:'');
     $('msg').textContent=text; $('done').hidden=false; btn.hidden=true;
   }
 });
