@@ -1,6 +1,6 @@
 // Хранилище в памяти — только для проверок.
 export function memoryDb() {
-  const t = { partners: [], clicks: [], leads: [], payouts: [], codes: [] };
+  const t = { partners: [], clicks: [], leads: [], payouts: [], codes: [], cafes: [], menus: [] };
   const copy = x => x.map(o => ({ ...o }));
   const one = x => (x ? { ...x } : null);
   const groupCount = (arr, key) => Object.entries(arr.reduce((m, r) => ((m[r[key]] = (m[r[key]] || 0) + 1), m), {})).map(([k, n]) => ({ [key]: k, n }));
@@ -38,6 +38,15 @@ export function memoryDb() {
       t.leads.forEach(l => { if (l.partner_id === id) l.partner_id = ''; });
       t.partners = t.partners.filter(p => p.id !== id);
     },
-    async allPayouts() { return copy(t.payouts); }
+    async allPayouts() { return copy(t.payouts); },
+    async cafeById(id) { return one(t.cafes.find(c => c.id === id)); },
+    async cafesByEmail(e) { return copy(t.cafes.filter(c => c.owner_email === e)); },
+    async allCafes() { return copy(t.cafes); },
+    async upsertCafe(c) { t.cafes = t.cafes.filter(x => x.id !== c.id); t.cafes.push({ ...c }); },
+    async latestMenu(id) { const v = t.menus.filter(m => m.cafe_id === id).sort((a, b) => b.ver - a.ver)[0]; return one(v); },
+    async menuByVer(id, ver) { return one(t.menus.find(m => m.cafe_id === id && m.ver === ver)); },
+    async menuVersions(id) { return copy(t.menus.filter(m => m.cafe_id === id)).sort((a, b) => b.ver - a.ver).slice(0, 20).map(({ cafe_id, ver, created_at, author }) => ({ cafe_id, ver, created_at, author })); },
+    async insertMenu(m) { t.menus.push({ ...m }); },
+    async trimMenus(id, keepFromVer) { t.menus = t.menus.filter(m => !(m.cafe_id === id && m.ver < keepFromVer)); }
   };
 }

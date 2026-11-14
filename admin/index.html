@@ -83,6 +83,7 @@ td.acts{white-space:nowrap}
     <button class="tab" data-t="leads" aria-selected="true">Заявки</button>
     <button class="tab" data-t="partners" aria-selected="false">Партнёры</button>
     <button class="tab" data-t="payouts" aria-selected="false">Выплаты</button>
+    <button class="tab" data-t="cafes" aria-selected="false">Кафе</button>
   </div>
 
   <section data-p="leads">
@@ -101,6 +102,11 @@ td.acts{white-space:nowrap}
 
   <section data-p="payouts" hidden>
     <div class="box"><table id="payoutsTbl"></table></div>
+  </section>
+
+  <section data-p="cafes" hidden>
+    <div class="box"><table id="cafesTbl"></table></div>
+    <p class="muted">Кабинет владельца: <b>qrstol.ru/cabinet/</b>. «Кабинет включён» — владелец может править меню сам (платный тариф); если выключить, меню для гостей продолжает работать, а правки идут через вас. Новое кафе заводится командой <code>node tools/seed-menu.mjs &lt;код&gt; --owner почта --active</code> — она же загружает меню со страницы кафе на сервер.</p>
   </section>
 </main>
 <div class="toast" id="toast" hidden></div>
@@ -150,7 +156,17 @@ function render(){
   $('sPaid').textContent = L.filter(l=>l.status==='paid').length;
   $('sPartners').textContent = data.partners.length;
   $('sDue').textContent = rub(data.partners.reduce((s,p)=>s+Math.max(0,p.balance),0));
-  renderLeads(); renderPartners(); renderPayouts();
+  renderLeads(); renderPartners(); renderPayouts(); renderCafes();
+}
+function renderCafes(){
+  const C = (data.cafes || []);
+  $('cafesTbl').innerHTML = C.length ? '<thead><tr><th>Кафе</th><th>E-mail владельца</th><th>Лимит позиций</th><th>Кабинет включён</th><th></th></tr></thead><tbody>' +
+    C.map(c=>`<tr data-cafe="${esc(c.id)}"><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.id)}</span></td>
+      <td><input type="email" data-cf="owner_email" value="${esc(c.owner_email)}" aria-label="E-mail владельца"></td>
+      <td><input type="number" min="1" max="500" data-cf="max_items" value="${c.max_items||100}" aria-label="Лимит позиций"></td>
+      <td><input type="checkbox" data-cf="active" ${c.active?'checked':''} aria-label="Кабинет включён"></td>
+      <td class="acts"><button class="btn" data-cafe-save="${esc(c.id)}">Сохранить</button></td></tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td class="empty">Кафе с кабинетом пока нет.</td></tr></tbody>';
 }
 function renderLeads(){
   const f = $('fStatus').value, q = $('fSearch').value.trim().toLowerCase();
@@ -222,6 +238,14 @@ document.addEventListener('submit', async e => {
   const check = f.querySelector('input[type=checkbox]').checked;
   try{ await api('/api/admin/payout', { partner: f.dataset.pay, amount: amount.value, note: note.value, check }); await load(); toast('Выплата записана'); }
   catch(err){ toast(err.message); }
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-cafe-save]'); if (!b) return;
+  const row = b.closest('tr'), g = k => row.querySelector(`[data-cf="${k}"]`);
+  b.disabled = true;
+  try{ await api('/api/admin/cafe', { id: b.dataset.cafeSave, owner_email: g('owner_email').value, max_items: g('max_items').value, active: g('active').checked }); await load(); toast('Кафе сохранено'); }
+  catch(err){ toast(err.message); }
+  b.disabled = false;
 });
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b===t));

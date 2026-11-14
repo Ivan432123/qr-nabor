@@ -52,7 +52,9 @@ export const db = {
       `CREATE TABLE IF NOT EXISTS clicks (partner_id Utf8 NOT NULL, day Utf8 NOT NULL, ip_hash Utf8 NOT NULL, PRIMARY KEY (partner_id, day, ip_hash))`,
       `CREATE TABLE IF NOT EXISTS leads (id Utf8 NOT NULL, created_at Utf8, name Utf8, cafe Utf8, phone Utf8, plan Utf8, partner_id Utf8, status Utf8, months Int32, paid_at Utf8, ip_hash Utf8, PRIMARY KEY (id))`,
       `CREATE TABLE IF NOT EXISTS codes (email Utf8 NOT NULL, purpose Utf8 NOT NULL, code_hash Utf8, expires Utf8, tries Int32, sent_at Utf8, ip_hash Utf8, PRIMARY KEY (email, purpose))`,
-      `CREATE TABLE IF NOT EXISTS payouts (id Utf8 NOT NULL, partner_id Utf8, amount Int32, note Utf8, check_received Int32, created_at Utf8, PRIMARY KEY (id))`
+      `CREATE TABLE IF NOT EXISTS payouts (id Utf8 NOT NULL, partner_id Utf8, amount Int32, note Utf8, check_received Int32, created_at Utf8, PRIMARY KEY (id))`,
+      `CREATE TABLE IF NOT EXISTS cafes (id Utf8 NOT NULL, name Utf8, owner_email Utf8, active Int32, max_items Int32, created_at Utf8, PRIMARY KEY (id))`,
+      `CREATE TABLE IF NOT EXISTS menus (cafe_id Utf8 NOT NULL, ver Int32 NOT NULL, data Utf8, created_at Utf8, author Utf8, PRIMARY KEY (cafe_id, ver))`
     ];
     for (const q of ddl) await sql([q]);
     // новые столбцы для уже созданных таблиц (повторно — пропускаем)
@@ -113,5 +115,20 @@ export const db = {
       await tx`DELETE FROM partners WHERE id = ${id}`;
     });
   },
-  async allPayouts() { return rows`SELECT id, partner_id, amount, note, check_received, created_at FROM payouts`; }
+  async allPayouts() { return rows`SELECT id, partner_id, amount, note, check_received, created_at FROM payouts`; },
+
+  async cafeById(id) { return (await rows`SELECT id, name, owner_email, active, max_items, created_at FROM cafes WHERE id = ${id}`)[0] || null; },
+  async cafesByEmail(e) { return rows`SELECT id, name, owner_email, active, max_items, created_at FROM cafes WHERE owner_email = ${e}`; },
+  async allCafes() { return rows`SELECT id, name, owner_email, active, max_items, created_at FROM cafes`; },
+  async upsertCafe(c) {
+    await exec`UPSERT INTO cafes (id, name, owner_email, active, max_items, created_at)
+      VALUES (${c.id}, ${c.name}, ${c.owner_email}, ${c.active}, ${c.max_items}, ${c.created_at})`;
+  },
+  async latestMenu(id) { return (await rows`SELECT cafe_id, ver, data, created_at, author FROM menus WHERE cafe_id = ${id} ORDER BY ver DESC LIMIT 1`)[0] || null; },
+  async menuByVer(id, ver) { return (await rows`SELECT cafe_id, ver, data, created_at, author FROM menus WHERE cafe_id = ${id} AND ver = ${ver}`)[0] || null; },
+  async menuVersions(id) { return rows`SELECT cafe_id, ver, created_at, author FROM menus WHERE cafe_id = ${id} ORDER BY ver DESC LIMIT 20`; },
+  async insertMenu(m) {
+    await exec`UPSERT INTO menus (cafe_id, ver, data, created_at, author) VALUES (${m.cafe_id}, ${m.ver}, ${m.data}, ${m.created_at}, ${m.author})`;
+  },
+  async trimMenus(id, keepFromVer) { await exec`DELETE FROM menus WHERE cafe_id = ${id} AND ver < ${keepFromVer}`; }
 };

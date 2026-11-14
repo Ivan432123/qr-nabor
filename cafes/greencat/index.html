@@ -306,7 +306,38 @@ document.addEventListener('click', e => {
   if (t.id === 'closeShow') { show.hidden = true; return; }
 });
 
+/* ===== меню из кабинета владельца (qrstol.ru/cabinet/) =====
+   Страница сначала показывает меню, зашитое выше (или последнее полученное с сервера), затем тихо обновляет его.
+   Если сервер недоступен или меню для этого кафе ещё не загружено — остаётся зашитое. */
+const MENU_API = 'https://functions.yandexcloud.net/d4eejuc9hi2iil13mta7?r=%2Fapi%2Fmenu&cafe=greencat';
+const MENU_KEY = 'greencat-menu-remote';
+function applyRemote(m) {
+  if (!m || !Array.isArray(m.categories) || !Array.isArray(m.items)) return false;
+  const items = m.items.filter(i => i && !i.hidden && m.categories.some(c => c.id === i.cat));
+  const cats = m.categories.filter(c => items.some(i => i.cat === c.id));
+  if (!cats.length) return false;
+  CATEGORIES.splice(0, CATEGORIES.length, ...cats);
+  MENU.splice(0, MENU.length, ...items);
+  if (!CATEGORIES.some(c => c.id === activeCat)) activeCat = CATEGORIES[0].id;
+  const pr = document.getElementById('promo');
+  if (m.promo && m.promo.on) {
+    Object.assign(PROMO, m.promo);
+    if (pr) { pr.hidden = false; pr.innerHTML = `<span>${m.promo.note ? `<small>${esc(m.promo.note)}</small>` : ''}<b>${esc(m.promo.name)}</b></span><span class="p">${rub(m.promo.price)}</span>`; }
+  } else if (pr && m.promo) pr.hidden = true;
+  return true;
+}
+let remoteVer = 0;
+try { const c = JSON.parse(localStorage.getItem(MENU_KEY) || 'null'); if (c && applyRemote(c.data)) remoteVer = c.version; } catch (e) {}
 renderCats(); renderMenu(); renderBar();
+(function () {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+  fetch(MENU_API, { signal: ctl.signal }).then(r => r.ok ? r.json() : null).then(r => {
+    clearTimeout(t);
+    if (!r || !r.data || r.version === remoteVer || !applyRemote(r.data)) return;
+    try { localStorage.setItem(MENU_KEY, JSON.stringify({ version: r.version, data: r.data })); } catch (e) {}
+    renderCats(); renderMenu();
+  }).catch(() => {});
+})();
 </script>
 </body>
 </html>

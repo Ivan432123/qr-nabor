@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Кабинет меню</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: мобильная одноколонка. Вход по коду из письма → список блюд с быстрой правкой цены и стоп-листом → разворот «Ещё» для остального → липкая панель «Сохранить» */
+:root{
+  --bg:#F6F1E7; --surface:#FFFFFF; --ink:#15262A; --muted:#5A6A69; --line:#E6DCCB;
+  --brand:#0E4D4A; --brand-ink:#FFF6EA; --soft:#DCEEEA; --sun:#F4A92B; --coral:#C2412D; --ok:#1E7B4F;
+  --display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:16px;line-height:1.45;padding-bottom:90px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+header{background:var(--brand);color:var(--brand-ink);padding:14px 16px}
+header .in{max-width:760px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header b{font-family:var(--display);font-size:15px}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:12px}
+h2{font-family:var(--display);font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:14px 0 6px}
+label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;min-height:44px}
+textarea{min-height:70px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:999px;border:0;background:var(--brand);color:var(--brand-ink);font-weight:800;cursor:pointer}
+.btn.ghost{background:transparent;color:inherit;border:1px solid currentColor}
+.btn.sm{min-height:36px;padding:0 14px;font-size:14px}
+.btn.danger{background:#fff;color:var(--coral);border:1px solid var(--coral)}
+.btn:disabled{opacity:.5;cursor:default}
+.err{color:var(--coral);font-weight:700;margin:8px 0 0}
+.note{color:var(--muted);font-size:14px}
+.banner{background:#FFF0CC;color:#6B4600;border-radius:14px;padding:12px 14px;margin-bottom:12px;font-weight:600}
+.cats{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none}
+.cat{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:700;cursor:pointer;min-height:40px}
+.cat[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
+.item.off{opacity:.65}
+.item .row{display:flex;align-items:center;gap:10px;padding:10px 12px;flex-wrap:wrap}
+.item .nm{flex:1 1 140px;min-width:0;font-weight:800;overflow-wrap:anywhere}
+.item .nm small{display:block;font-weight:500;color:var(--muted)}
+.item .pr{width:96px;flex:none;text-align:right;font-weight:800}
+.sw{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;min-height:44px}
+.sw input{width:22px;height:22px;min-height:0;accent-color:var(--coral)}
+.more{border-top:1px solid var(--line);padding:6px 14px 14px;background:#FBF8F2}
+.pair{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.pair input:first-child{flex:1}
+.pair input:nth-child(2){width:100px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+.bar .in{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:9;max-width:90%}
+.ver{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.thumb{width:44px;height:44px;border-radius:10px;flex:none;background:var(--soft);object-fit:cover}
+</style>
+</head>
+<body>
+<header><div class="in"><b>Кабинет меню</b><span><select id="cafeSel" hidden style="width:auto;min-height:36px;padding:4px 8px"></select> <button class="btn ghost sm" id="logout" hidden>Выйти</button></span></div></header>
+
+<div class="wrap" id="loginBox">
+  <div class="card">
+    <h2>Вход</h2>
+    <p class="note">Введите e-mail, который вы указали при подключении кабинета. Мы пришлём код — пароль не нужен.</p>
+    <form id="mailForm">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <p class="err" id="mailErr" hidden></p>
+      <p style="margin:14px 0 0"><button class="btn" type="submit" id="mailBtn">Получить код</button></p>
+    </form>
+    <form id="codeForm" hidden>
+      <label for="code">Код из письма</label>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+      <p class="err" id="codeErr" hidden></p>
+      <p style="margin:14px 0 0"><button class="btn" type="submit">Войти</button> <button class="btn ghost" type="button" id="backBtn" style="color:var(--ink)">Другой e-mail</button></p>
+    </form>
+    <p class="note" id="noAccess">Нет доступа? Кабинет входит в отдельный тариф — напишите нам, подключим.</p>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <div class="banner" id="inactive" hidden>Правки сейчас закрыты: кабинет не подключён или подписка закончилась. Меню для гостей работает как обычно, а изменения вам внесём мы по сообщению.</div>
+  <div class="cats" id="cats"></div>
+  <div id="list"></div>
+  <p><button class="btn" id="addItem">+ Добавить блюдо</button></p>
+
+  <div class="card" id="catCard">
+    <h2>Категории</h2>
+    <div id="catList"></div>
+    <p><button class="btn ghost sm" id="addCat" style="color:var(--ink)">+ Новая категория</button></p>
+  </div>
+
+  <div class="card">
+    <h2>Акция на главном экране</h2>
+    <label class="sw" style="font-size:15px"><input type="checkbox" id="promoOn" style="accent-color:var(--brand)"> Показывать акцию</label>
+    <div id="promoFields">
+      <label for="promoName">Название</label><input id="promoName" maxlength="60">
+      <label for="promoNote">Подпись (например, «До 11:00»)</label><input id="promoNote" maxlength="40">
+      <label for="promoDesc">Описание</label><input id="promoDesc" maxlength="120">
+      <label for="promoPrice">Цена, ₽</label><input id="promoPrice" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>История изменений</h2>
+    <p class="note">Если что-то пошло не так — верните любую из прошлых версий. Возврат тоже сохраняется как новая версия.</p>
+    <div id="versions"></div>
+  </div>
+</div>
+
+<div class="bar" id="bar" hidden><div class="in"><span class="note" id="dirtyNote">Нет изменений</span><button class="btn" id="save" disabled>Сохранить</button></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="../config.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY = 'nabor_owner';
+const CFG = window.NABOR_CONFIG || {};
+let token = '', email = '', cafeId = '', cafeInfo = null, menu = null, saved = '', version = 0, versions = [], activeCat = '', open = null;
+
+async function api(path, body) {
+  const r = await fetch(naborApi(path), { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Auth': 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401 && token) { logout(); throw new Error('Войдите заново'); }
+  if (!r.ok) { const e = new Error(d.error || 'Сервер недоступен'); e.status = r.status; throw e; }
+  return d;
+}
+function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3200); }
+const show = (id, t) => { const el = $(id); el.textContent = t; el.hidden = !t; };
+
+/* ---------- вход ---------- */
+$('noAccess').innerHTML += CFG.PHONE ? ' ' + esc(CFG.PHONE) : '';
+$('mailForm').onsubmit = async e => {
+  e.preventDefault(); show('mailErr', ''); email = $('email').value.trim().toLowerCase(); $('mailBtn').disabled = true;
+  try { await api('/api/owner/code', { email }); $('mailForm').hidden = true; $('codeForm').hidden = false; $('code').focus(); }
+  catch (err) { show('mailErr', err.message === 'manual' ? 'Почта на сервере не настроена — напишите нам.' : err.message); }
+  $('mailBtn').disabled = false;
+};
+$('backBtn').onclick = () => { $('codeForm').hidden = true; $('mailForm').hidden = false; };
+$('codeForm').onsubmit = async e => {
+  e.preventDefault(); show('codeErr', '');
+  try {
+    const d = await api('/api/owner/login', { email, code: $('code').value.trim() });
+    token = d.token; localStorage.setItem(KEY, JSON.stringify({ token, email }));
+    await start(localStorage.getItem(KEY + '_cafe') && d.cafes.some(c => c.id === localStorage.getItem(KEY + '_cafe')) ? localStorage.getItem(KEY + '_cafe') : d.cafes[0].id);
+  } catch (err) { show('codeErr', err.message); }
+};
+function logout() { token = ''; localStorage.removeItem(KEY); localStorage.removeItem(KEY + '_cafe'); $('app').hidden = true; $('bar').hidden = true; $('logout').hidden = true; $('cafeSel').hidden = true; $('loginBox').hidden = false; $('mailForm').hidden = false; $('codeForm').hidden = true; }
+$('logout').onclick = logout;
+
+/* ---------- загрузка ---------- */
+async function start(id) {
+  const d = await api('/api/owner/menu?cafe=' + encodeURIComponent(id));
+  cafeId = d.cafe.id; localStorage.setItem(KEY + '_cafe', cafeId); cafeInfo = d.cafe; menu = d.menu; version = d.version; versions = d.versions;
+  menu.promo = menu.promo || { on: false };
+  saved = JSON.stringify(menu); open = null; activeCat = menu.categories[0] ? menu.categories[0].id : '';
+  $('loginBox').hidden = true; $('app').hidden = false; $('bar').hidden = false; $('logout').hidden = false;
+  const sel = $('cafeSel'); sel.hidden = d.cafes.length < 2;
+  sel.innerHTML = d.cafes.map(c => `<option value="${esc(c.id)}"${c.id === cafeId ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
+  $('inactive').hidden = cafeInfo.active;
+  document.querySelector('header b').textContent = 'Меню · ' + cafeInfo.name;
+  render();
+}
+$('cafeSel').onchange = async e => { if (dirty() && !confirm('Есть несохранённые изменения. Переключиться без сохранения?')) { e.target.value = cafeId; return; } await start(e.target.value).catch(err => toast(err.message)); };
+
+const dirty = () => menu && JSON.stringify(menu) !== saved;
+const locked = () => !cafeInfo.active;
+
+/* ---------- отрисовка ---------- */
+function render() {
+  const items = menu.items;
+  $('cats').innerHTML = menu.categories.map(c => `<button class="cat" data-cat="${esc(c.id)}" aria-pressed="${c.id === activeCat}">${esc(c.name)} · ${items.filter(i => i.cat === c.id).length}</button>`).join('');
+  const shown = items.filter(i => i.cat === activeCat);
+  $('list').innerHTML = shown.length ? shown.map(itemHtml).join('') : '<p class="note">В этой категории пока нет блюд.</p>';
+  $('catList').innerHTML = menu.categories.map((c, i) => `<div class="pair"><input data-cname="${i}" value="${esc(c.name)}" maxlength="40" aria-label="Название категории">
+    <button class="btn ghost sm" data-cup="${i}" style="color:var(--ink)" aria-label="Выше">↑</button><button class="btn ghost sm" data-cdel="${i}" style="color:var(--coral)" aria-label="Удалить">✕</button></div>`).join('');
+  const p = menu.promo;
+  $('promoOn').checked = !!p.on; $('promoFields').hidden = !p.on;
+  $('promoName').value = p.name || ''; $('promoNote').value = p.note || ''; $('promoDesc').value = p.desc || ''; $('promoPrice').value = p.price ?? '';
+  $('versions').innerHTML = versions.map(v => `<div class="ver"><span>№${v.ver} · ${new Date(v.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${v.ver === version ? ' · <b>сейчас</b>' : ''}</span>${v.ver === version ? '' : `<button class="btn ghost sm" data-rb="${v.ver}" style="color:var(--ink)">Вернуть</button>`}</div>`).join('');
+  document.querySelectorAll('#app input, #app select, #app textarea, #app button').forEach(el => { if (locked() && !el.dataset.rb && !el.dataset.cat && el.id !== 'logout') el.disabled = true; });
+  $('versions').querySelectorAll('button').forEach(b => b.disabled = locked());
+  updateBar();
+}
+function itemHtml(it) {
+  const idx = menu.items.indexOf(it), o = open === it.id;
+  return `<div class="item${it.hidden ? ' off' : ''}" data-i="${idx}">
+    <div class="row">
+      ${it.photo ? `<img class="thumb" src="${esc(it.photo)}" alt="">` : `<span class="thumb" style="background:${esc(it.bg || '#DCEEEA')}"></span>`}
+      <span class="nm">${esc(it.name)}<small>${it.hidden ? 'Скрыто от гостей (стоп-лист)' : esc(it.desc || '')}</small></span>
+      <input class="pr" data-f="price" inputmode="numeric" value="${esc(it.price)}" aria-label="Цена, ₽">
+      <label class="sw" style="margin:0"><input type="checkbox" data-f="hidden" ${it.hidden ? 'checked' : ''}> Скрыть</label>
+      <button class="btn ghost sm" data-more="${esc(it.id)}" style="color:var(--ink)">${o ? 'Свернуть' : 'Ещё'}</button>
+    </div>
+    ${o ? `<div class="more">
+      <label>Название</label><input data-f="name" value="${esc(it.name)}" maxlength="60">
+      <label>Описание</label><textarea data-f="desc" maxlength="160">${esc(it.desc || '')}</textarea>
+      <label>Категория</label><select data-f="cat">${menu.categories.map(c => `<option value="${esc(c.id)}"${c.id === it.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      <label>Метка на карточке (например, «Хит»)</label><input data-f="tag" value="${esc(it.tag || '')}" maxlength="16">
+      <label>Фото</label>
+      <input data-f="photo" value="${esc(it.photo || '')}" placeholder="https://…">
+      ${upCfg() ? `<p style="margin:6px 0 0"><label class="btn ghost sm" style="margin:0;color:var(--ink);cursor:pointer">Загрузить с телефона<input type="file" accept="image/*" data-up="${idx}" hidden></label></p>` : '<p class="note" style="margin:4px 0 0">Вставьте ссылку на фото (https). Загрузка с телефона подключается отдельно.</p>'}
+      <h3>Размеры (доплата к цене)</h3>
+      ${(it.sizes || []).map((s, k) => `<div class="pair"><input data-sz="${k}" data-sf="label" value="${esc(s.label)}" maxlength="20" placeholder="250 мл"><input data-sz="${k}" data-sf="add" inputmode="numeric" value="${esc(s.add)}" aria-label="Доплата"><button class="btn ghost sm" data-szdel="${k}" style="color:var(--coral)">✕</button></div>`).join('')}
+      <button class="btn ghost sm" data-szadd style="color:var(--ink)">+ Размер</button>
+      <h3>Добавки (цена за добавку)</h3>
+      ${(it.extras || []).map((x, k) => `<div class="pair"><input data-ex="${k}" data-ef="label" value="${esc(x.label)}" maxlength="40" placeholder="Сироп"><input data-ex="${k}" data-ef="price" inputmode="numeric" value="${esc(x.price)}" aria-label="Цена"><button class="btn ghost sm" data-exdel="${k}" style="color:var(--coral)">✕</button></div>`).join('')}
+      <button class="btn ghost sm" data-exadd style="color:var(--ink)">+ Добавка</button>
+      <div class="tools"><button class="btn danger sm" data-del="${esc(it.id)}">Удалить блюдо</button></div>
+    </div>` : ''}
+  </div>`;
+}
+function updateBar() {
+  const d = dirty(); $('save').disabled = !d || locked();
+  $('dirtyNote').textContent = locked() ? 'Правки закрыты' : d ? 'Есть несохранённые изменения' : 'Всё сохранено · версия №' + version;
+}
+const upCfg = () => CFG.PHOTO_UPLOAD && CFG.PHOTO_UPLOAD.cloud && CFG.PHOTO_UPLOAD.preset;
+const num = v => { const n = Math.round(Number(String(v).replace(/\s/g, '').replace(',', '.'))); return Number.isFinite(n) ? n : v; };
+const newId = () => 'n' + Date.now().toString(36) + Math.floor(Math.random() * 1e3).toString(36);
+
+/* ---------- правки ---------- */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('button'); if (!t || !token) return;
+  const d = t.dataset, item = () => menu.items[+t.closest('.item').dataset.i];
+  if (d.cat) { activeCat = d.cat; open = null; return render(); }
+  if (d.more) { open = open === d.more ? null : d.more; return render(); }
+  if (d.szadd !== undefined) { const it = item(); (it.sizes = it.sizes || []).push({ label: '', add: 0 }); return render(); }
+  if (d.szdel) { item().sizes.splice(+d.szdel, 1); return render(); }
+  if (d.exadd !== undefined) { const it = item(); (it.extras = it.extras || []).push({ label: '', price: 0 }); return render(); }
+  if (d.exdel) { item().extras.splice(+d.exdel, 1); return render(); }
+  if (d.del) { if (confirm('Удалить блюдо «' + item().name + '»? Чтобы убрать на время — лучше «Скрыть».')) { menu.items.splice(menu.items.indexOf(item()), 1); open = null; render(); } return; }
+  if (d.cup) { const i = +d.cup; if (i > 0) { [menu.categories[i - 1], menu.categories[i]] = [menu.categories[i], menu.categories[i - 1]]; render(); } return; }
+  if (d.cdel) {
+    const c = menu.categories[+d.cdel], n = menu.items.filter(i => i.cat === c.id).length;
+    if (n) return toast('В категории «' + c.name + '» ещё ' + n + ' блюд — сначала перенесите или удалите их');
+    if (menu.categories.length < 2) return toast('Нужна хотя бы одна категория');
+    menu.categories.splice(+d.cdel, 1); if (activeCat === c.id) activeCat = menu.categories[0].id; return render();
+  }
+  if (d.rb) {
+    if (dirty() && !confirm('Несохранённые изменения пропадут. Продолжить?')) return;
+    if (!confirm('Вернуть версию №' + d.rb + '?')) return;
+    try { await api('/api/owner/rollback', { cafe: cafeId, ver: +d.rb }); await start(cafeId); toast('Версия возвращена'); } catch (err) { toast(err.message); }
+    return;
+  }
+});
+$('addItem').onclick = () => {
+  if (!menu.categories.length) return toast('Сначала создайте категорию');
+  const it = { id: newId(), cat: activeCat || menu.categories[0].id, name: 'Новое блюдо', desc: '', price: 0, icon: 'plate', bg: '#EFE2CC', ink: '#5E6B6A' };
+  menu.items.push(it); open = it.id; render(); setTimeout(() => document.querySelector('.item .more [data-f="name"]')?.select(), 0);
+};
+$('addCat').onclick = () => { menu.categories.push({ id: newId(), name: 'Новая категория' }); activeCat = menu.categories[menu.categories.length - 1].id; render(); };
+document.addEventListener('input', e => {
+  const el = e.target, row = el.closest('.item');
+  if (el.dataset.cname !== undefined) { menu.categories[+el.dataset.cname].name = el.value; return updateBar(); }
+  if (el.id === 'promoOn') { menu.promo.on = el.checked; $('promoFields').hidden = !el.checked; return updateBar(); }
+  if (/^promo(Name|Note|Desc|Price)$/.test(el.id)) { const k = el.id.slice(5).toLowerCase(); menu.promo[k] = k === 'price' ? num(el.value) : el.value; return updateBar(); }
+  if (!row) return;
+  const it = menu.items[+row.dataset.i], f = el.dataset.f;
+  if (f === 'price') it.price = num(el.value);
+  else if (f === 'hidden') { it.hidden = el.checked; if (!el.checked) delete it.hidden; render(); return; }
+  else if (f) { it[f] = el.value; if (!el.value && (f === 'tag' || f === 'photo')) delete it[f]; if (f === 'cat') { activeCat = el.value; render(); return; } }
+  else if (el.dataset.sz !== undefined) it.sizes[+el.dataset.sz][el.dataset.sf] = el.dataset.sf === 'add' ? num(el.value) : el.value;
+  else if (el.dataset.ex !== undefined) it.extras[+el.dataset.ex][el.dataset.ef] = el.dataset.ef === 'price' ? num(el.value) : el.value;
+  updateBar();
+});
+// после ввода в «Фото» перерисуем миниатюру
+document.addEventListener('change', async e => {
+  const el = e.target;
+  if (el.dataset.f === 'photo') render();
+  if (el.dataset.up !== undefined && el.files[0]) {
+    const it = menu.items[+el.dataset.up];
+    try { toast('Загружаем фото…'); it.photo = await uploadPhoto(el.files[0]); render(); toast('Фото загружено'); } catch (err) { toast(err.message); }
+  }
+});
+// фото сжимается на телефоне (до 900 px) и уходит в Cloudinary по неподписанному пресету из config.js
+async function uploadPhoto(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .82));
+  const fd = new FormData(); fd.append('file', blob); fd.append('upload_preset', CFG.PHOTO_UPLOAD.preset);
+  const r = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(CFG.PHOTO_UPLOAD.cloud) + '/image/upload', { method: 'POST', body: fd });
+  const d = await r.json().catch(() => ({}));
+  if (!d.secure_url) throw new Error('Не удалось загрузить фото');
+  return d.secure_url;
+}
+
+/* ---------- сохранение ---------- */
+$('save').onclick = async () => {
+  $('save').disabled = true;
+  try {
+    const r = await api('/api/owner/menu', { cafe: cafeId, menu, baseVersion: version });
+    await start(cafeId); toast('Сохранено: гости увидят новое меню сразу, как обновят страницу');
+  } catch (err) {
+    toast(err.message); if (err.status === 409 && confirm(err.message + '\n\nОбновить сейчас? Ваши несохранённые правки пропадут.')) await start(cafeId);
+  }
+  updateBar();
+};
+window.addEventListener('beforeunload', e => { if (token && menu && dirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- автовход ---------- */
+(async () => {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!s || !s.token) return;
+    token = s.token; email = s.email || '';
+    const mine = new URLSearchParams(location.search).get('cafe');
+    const last = localStorage.getItem(KEY + '_cafe');
+    await start(mine || last || '');
+  } catch (e) { if (token) logout(); }
+})();
+</script>
+</body>
+</html>

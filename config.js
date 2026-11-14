@@ -13,6 +13,8 @@ window.NABOR_CONFIG = {
     max: 'https://max.ru/u/f9LHodD0cOIPMRqrsvSdQufaBFg-tYNjLJu1U8a7lNCOjuCbU1JbQpHYpVw',  // ссылка на ваш профиль в MAX
     avito: ''       // ссылка на ваш профиль на Авито
   },
+  // Загрузка фото блюд с телефона в кабинете владельца (Cloudinary, неподписанный пресет). Пусто = кнопки нет, фото вставляют ссылкой.
+  PHOTO_UPLOAD: { cloud: '', preset: '' },
   // Живой пример QR-меню.
   DEMO_URL: 'https://zerno.qrstol.ru/#5'
 };

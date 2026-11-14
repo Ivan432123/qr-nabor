@@ -230,5 +230,91 @@ await step('удаление записей', async () => {
 await step('чужой токен не подходит', async () => {
   assert.equal((await call('GET', '/api/me', null, token.slice(0, -2) + 'xx')).status, 401);
 });
+
+// ---------- кабинет владельца: меню ----------
+{
+  const cafeId = 'tcafe' + Date.now().toString(36), owner = `owner${Date.now()}@example.ru`;
+  const base = { categories: [{ id: 'coffee', name: 'Кофе' }, { id: 'food', name: 'Еда' }],
+    items: [{ id: 'cap', cat: 'coffee', name: 'Капучино', desc: 'Эспрессо и пена', price: 220, bg: '#FFE0D9', ink: '#C2412D', icon: 'cup', sizes: [{ label: '250 мл', add: 0 }, { label: '350 мл', add: 40 }] },
+            { id: 'cake', cat: 'food', name: 'Чизкейк', desc: '', price: 290, bg: '#FFF1D6', ink: '#A86A00', icon: 'cake' }],
+    promo: { on: true, name: 'Кофе + круассан', note: 'До 11:00', price: 290 } };
+  let ownerToken, ver;
+  const ownerLogin = async email => {
+    await call('POST', '/api/owner/code', { email }, null, '5.5.5.' + Math.floor(Math.random() * 200));
+    const c = lastCode(email); if (!c) return null;
+    return (await call('POST', '/api/owner/login', { email, code: c })).data.token;
+  };
+  await step('меню: админ создаёт кафе со стартовым меню, публично видно без скрытых', async () => {
+    admin = admin || (await call('POST', '/api/admin/login', { password: env.ADMIN_PASSWORD })).data.token;
+    assert.equal((await call('POST', '/api/admin/cafe', { id: cafeId, owner_email: owner, menu: base })).status, 401, 'без админа нельзя');
+    const r = await call('POST', '/api/admin/cafe', { id: cafeId, name: 'Тест', owner_email: owner, active: 1, max_items: 5, menu: { ...base, items: [...base.items, { id: 'x', cat: 'food', name: 'Скрытое', price: 1, hidden: true }] } }, admin);
+    assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.version, 1);
+    const pub = await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: cafeId });
+    assert.equal(pub.status, 200); assert.equal(pub.data.data.items.length, 2, 'скрытое не должно уходить гостям');
+    assert.equal(pub.data.data.promo.on, true);
+    assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: 'net-takogo' })).status, 404);
+    assert.ok(!JSON.stringify(pub.data).includes(owner), 'e-mail владельца не должен быть в публичном ответе');
+  });
+  await step('меню: вход по коду; чужой email ничего не получает', async () => {
+    const before = (globalThis.__outbox || []).length;
+    const r = await call('POST', '/api/owner/code', { email: 'stranger@example.ru' }, null, '6.6.6.6');
+    assert.equal(r.status, 200); assert.equal((globalThis.__outbox || []).length, before, 'письмо чужому уходить не должно');
+    assert.equal((await call('POST', '/api/owner/login', { email: 'stranger@example.ru', code: '123456' })).status, 400);
+    assert.equal((await call('POST', '/api/owner/login', { email: owner, code: '000000' })).status, 400, 'неверный код');
+    ownerToken = await ownerLogin(owner); assert.ok(ownerToken);
+    assert.equal((await call('GET', '/api/owner/menu', null, null, '1.1.1.1', { cafe: cafeId })).status, 401);
+    const m = (await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).data;
+    assert.equal((await call('GET', '/api/owner/menu', null, ownerToken)).data.cafe.id, cafeId, 'без кафе в запросе — первое кафе владельца');
+    assert.equal(m.menu.items.length, 3, 'владелец видит и скрытое блюдо'); assert.equal(m.cafe.active, true); ver = m.version;
+  });
+  await step('меню: правка цены, стоп-лист, конфликт версий, откат', async () => {
+    const m = (await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).data.menu;
+    m.items.find(i => i.id === 'cap').price = 250; m.items.find(i => i.id === 'cake').hidden = true;
+    let r = await call('POST', '/api/owner/menu', { cafe: cafeId, menu: m, baseVersion: ver }, ownerToken);
+    assert.equal(r.status, 200, JSON.stringify(r.data)); const v2 = r.data.version; assert.equal(v2, ver + 1);
+    let pub = (await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: cafeId })).data;
+    assert.equal(pub.data.items.find(i => i.id === 'cap').price, 250); assert.ok(!pub.data.items.some(i => i.id === 'cake'), 'стоп-лист');
+    assert.equal((await call('POST', '/api/owner/menu', { cafe: cafeId, menu: m, baseVersion: ver }, ownerToken)).status, 409, 'устаревшая версия');
+    r = await call('POST', '/api/owner/rollback', { cafe: cafeId, ver }, ownerToken);
+    assert.equal(r.status, 200); assert.equal(r.data.version, v2 + 1);
+    pub = (await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: cafeId })).data;
+    assert.equal(pub.data.items.find(i => i.id === 'cap').price, 220, 'после отката цена прежняя');
+    assert.equal((await call('POST', '/api/owner/rollback', { cafe: cafeId, ver: 999 }, ownerToken)).status, 404);
+    ver = r.data.version;
+  });
+  await step('меню: проверка данных (цвета, фото, цена, лимит, категории)', async () => {
+    const send = async mut => { const m = JSON.parse(JSON.stringify(base)); mut(m); return call('POST', '/api/owner/menu', { cafe: cafeId, menu: m, baseVersion: ver }, ownerToken); };
+    assert.equal((await send(m => { m.items[0].photo = 'javascript:alert(1)'; })).status, 400, 'фото только https');
+    assert.equal((await send(m => { m.items[0].photo = 'img/../../x.jpg'; })).status, 400, 'выход из папки img');
+    assert.equal((await send(m => { m.items[0].price = -5; })).status, 400);
+    assert.equal((await send(m => { m.items[0].price = 'abc'; })).status, 400);
+    assert.equal((await send(m => { m.items[0].cat = 'нет'; })).status, 400, 'несуществующая категория');
+    assert.equal((await send(m => { m.items[0].name = ''; })).status, 400);
+    assert.equal((await send(m => { for (let i = 0; i < 6; i++) m.items.push({ cat: 'food', name: 'Блюдо ' + i, price: 10 }); })).status, 400, 'лимит позиций тарифа (5)');
+    assert.equal((await send(m => { m.items[0].photo = 'img/plov1.jpg'; })).status, 200, 'фото из папки кафе допускается');
+    ver = (await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).data.version;
+    const r = await send(m => { m.items[0].bg = 'red;background:url(//evil)'; m.items[0].ink = '"><script>'; m.items[0].evil = 'x'; m.items[1].name = '<b>Торт</b>'; });
+    assert.equal(r.status, 200, JSON.stringify(r.data)); ver = r.data.version;
+    const it = (await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: cafeId })).data.data.items;
+    assert.equal(it[0].bg, '#EFE2CC', 'плохой цвет заменён'); assert.equal(it[0].ink, '#5E6B6A'); assert.equal(it[0].evil, undefined, 'лишние поля отброшены');
+  });
+  await step('меню: подписка выключена — правки закрыты, меню работает; чужое кафе закрыто', async () => {
+    await call('POST', '/api/admin/cafe', { id: cafeId, active: 0 }, admin);
+    const m = (await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).data;
+    assert.equal(m.cafe.active, false);
+    assert.equal((await call('POST', '/api/owner/menu', { cafe: cafeId, menu: m.menu, baseVersion: m.version }, ownerToken)).status, 402);
+    assert.equal((await call('POST', '/api/owner/rollback', { cafe: cafeId, ver: 1 }, ownerToken)).status, 402);
+    assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: cafeId })).status, 200, 'гости по-прежнему видят меню');
+    await call('POST', '/api/admin/cafe', { id: cafeId, active: 1 }, admin);
+    const otherId = cafeId + 'b', other = `other${Date.now()}@example.ru`;
+    await call('POST', '/api/admin/cafe', { id: otherId, owner_email: other, active: 1, menu: base }, admin);
+    assert.equal((await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: otherId })).status, 403, 'чужое кафе');
+    assert.equal((await call('POST', '/api/owner/menu', { cafe: otherId, menu: base, baseVersion: 1 }, ownerToken)).status, 403);
+    assert.equal((await call('POST', '/api/owner/menu', { cafe: cafeId, menu: base, baseVersion: 1 }, admin)).status, 401, 'токен админа не годится владельцу');
+    // смена владельца отзывает старый токен
+    await call('POST', '/api/admin/cafe', { id: cafeId, owner_email: other }, admin);
+    assert.equal((await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).status, 403, 'после смены владельца старый токен не работает');
+  });
+}
 console.log(useYdb ? 'Все проверки на YDB пройдены' : 'Все проверки пройдены');
 process.exit(0);
