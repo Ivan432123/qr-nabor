@@ -47,6 +47,7 @@ export function memoryDb() {
     async menuByVer(id, ver) { return one(t.menus.find(m => m.cafe_id === id && m.ver === ver)); },
     async menuVersions(id) { return copy(t.menus.filter(m => m.cafe_id === id)).sort((a, b) => b.ver - a.ver).slice(0, 20).map(({ cafe_id, ver, created_at, author }) => ({ cafe_id, ver, created_at, author })); },
     async insertMenu(m) { t.menus.push({ ...m }); },
+    async deleteCafe(id) { t.cafes = t.cafes.filter(c => c.id !== id); t.menus = t.menus.filter(m => m.cafe_id !== id); },
     async trimMenus(id, keepFromVer) { t.menus = t.menus.filter(m => !(m.cafe_id === id && m.ver < keepFromVer)); }
   };
 }

@@ -130,5 +130,12 @@ export const db = {
   async insertMenu(m) {
     await exec`UPSERT INTO menus (cafe_id, ver, data, created_at, author) VALUES (${m.cafe_id}, ${m.ver}, ${m.data}, ${m.created_at}, ${m.author})`;
   },
+  async deleteCafe(id) {
+    const sql = await getSql();
+    await sql.begin(async tx => {
+      await tx`DELETE FROM menus WHERE cafe_id = ${id}`;
+      await tx`DELETE FROM cafes WHERE id = ${id}`;
+    });
+  },
   async trimMenus(id, keepFromVer) { await exec`DELETE FROM menus WHERE cafe_id = ${id} AND ver < ${keepFromVer}`; }
 };

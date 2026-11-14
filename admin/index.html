@@ -176,7 +176,7 @@ function renderCafes(){
       <td><input type="email" data-cf="owner_email" value="${esc(c.owner_email)}" aria-label="E-mail владельца"></td>
       <td><input type="number" min="1" max="500" data-cf="max_items" value="${c.max_items||100}" aria-label="Лимит позиций"></td>
       <td><input type="checkbox" data-cf="active" ${c.active?'checked':''} aria-label="Кабинет включён"></td>
-      <td class="acts"><button class="btn" data-cafe-save="${esc(c.id)}">Сохранить</button></td></tr>`).join('') + '</tbody>'
+      <td class="acts"><button class="btn" data-cafe-save="${esc(c.id)}">Сохранить</button><button class="btn-del" data-del="cafe" data-id="${esc(c.id)}" data-label="${esc('кафе «'+c.name+'» вместе со всем его меню и историей версий (гости больше не увидят меню на странице qrstol.ru/m/)')}" title="Удалить" aria-label="Удалить кафе">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Кафе с кабинетом пока нет.</td></tr></tbody>';
 }
 function renderLeads(){

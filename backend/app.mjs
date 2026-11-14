@@ -455,6 +455,7 @@ async function adminDelete(ctx) {
   if (b.type === 'lead') await db.deleteLead(id);
   else if (b.type === 'payout') await db.deletePayout(id);
   else if (b.type === 'partner') await db.deletePartner(id);
+  else if (b.type === 'cafe') { if (!(await db.cafeById(slug(id)))) return json({ error: 'Кафе не найдено' }, 404); await db.deleteCafe(slug(id)); }
   else return json({ error: 'Неизвестный тип' }, 400);
   return json({ ok: true });
 }

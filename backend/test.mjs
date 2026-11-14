@@ -343,6 +343,12 @@ await step('кабинет «Сам себе админ»: партнёру 198 
     assert.equal((await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: otherId })).status, 403, 'чужое кафе');
     assert.equal((await call('POST', '/api/owner/menu', { cafe: otherId, menu: base, baseVersion: 1 }, ownerToken)).status, 403);
     assert.equal((await call('POST', '/api/owner/menu', { cafe: cafeId, menu: base, baseVersion: 1 }, admin)).status, 401, 'токен админа не годится владельцу');
+    assert.equal((await call('POST', '/api/admin/delete', { type: 'cafe', id: otherId }, ownerToken)).status, 401, 'владелец удалять не может');
+    assert.equal((await call('POST', '/api/admin/delete', { type: 'cafe', id: otherId }, admin)).status, 200);
+    assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: otherId })).status, 404, 'меню удалённого кафе исчезло');
+    assert.ok(!(await call('GET', '/api/admin/data', null, admin)).data.cafes.some(c => c.id === otherId), 'кафе пропало из админки');
+    assert.equal((await call('POST', '/api/admin/delete', { type: 'cafe', id: otherId }, admin)).status, 404, 'повторное удаление');
+    await call('POST', '/api/admin/cafe', { id: otherId, owner_email: other, active: 1, menu: base }, admin);   // вернуть для проверки ниже
     // смена владельца отзывает старый токен
     await call('POST', '/api/admin/cafe', { id: cafeId, owner_email: other }, admin);
     assert.equal((await call('GET', '/api/owner/menu', null, ownerToken, '1.1.1.1', { cafe: cafeId })).status, 403, 'после смены владельца старый токен не работает');
