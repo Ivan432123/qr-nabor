@@ -98,6 +98,13 @@ textarea{min-height:70px;resize:vertical}
     <p><button class="btn ghost sm" id="addCat" style="color:var(--ink)">+ Новая категория</button></p>
   </div>
 
+  <div class="card" id="brandCard">
+    <h2>О заведении</h2>
+    <label for="brandName">Название (в шапке меню)</label><input id="brandName" maxlength="60">
+    <label for="brandSub">Подпись (адрес, часы работы)</label><input id="brandSub" maxlength="100" placeholder="Кофейня · ул. Садовая, 15 · с 8:00 до 22:00">
+    <p class="note" id="menuLink" hidden>Ссылка на ваше меню: <b id="menuUrl"></b><br>Для QR-кода на столе добавьте в конец номер стола, например <b id="menuUrl2"></b></p>
+  </div>
+
   <div class="card">
     <h2>Акция на главном экране</h2>
     <label class="sw" style="font-size:15px"><input type="checkbox" id="promoOn" style="accent-color:var(--brand)"> Показывать акцию</label>
@@ -183,6 +190,8 @@ function render() {
   $('list').innerHTML = shown.length ? shown.map(itemHtml).join('') : '<p class="note">В этой категории пока нет блюд.</p>';
   $('catList').innerHTML = menu.categories.map((c, i) => `<div class="pair"><input data-cname="${i}" value="${esc(c.name)}" maxlength="40" aria-label="Название категории">
     <button class="btn ghost sm" data-cup="${i}" style="color:var(--ink)" aria-label="Выше">↑</button><button class="btn ghost sm" data-cdel="${i}" style="color:var(--coral)" aria-label="Удалить">✕</button></div>`).join('');
+  const br = menu.brand || {}; $('brandName').value = br.name || ''; $('brandSub').value = br.sub || '';
+  const url = 'https://qrstol.ru/m/?c=' + cafeId; $('menuUrl').textContent = url; $('menuUrl2').textContent = url + '#5'; $('menuLink').hidden = false;
   const p = menu.promo;
   $('promoOn').checked = !!p.on; $('promoFields').hidden = !p.on;
   $('promoName').value = p.name || ''; $('promoNote').value = p.note || ''; $('promoDesc').value = p.desc || ''; $('promoPrice').value = p.price ?? '';
@@ -261,6 +270,7 @@ $('addCat').onclick = () => { menu.categories.push({ id: newId(), name: 'Нов�
 document.addEventListener('input', e => {
   const el = e.target, row = el.closest('.item');
   if (el.dataset.cname !== undefined) { menu.categories[+el.dataset.cname].name = el.value; return updateBar(); }
+  if (el.id === 'brandName' || el.id === 'brandSub') { menu.brand = menu.brand || {}; menu.brand[el.id === 'brandName' ? 'name' : 'sub'] = el.value; return updateBar(); }
   if (el.id === 'promoOn') { menu.promo.on = el.checked; $('promoFields').hidden = !el.checked; return updateBar(); }
   if (/^promo(Name|Note|Desc|Price)$/.test(el.id)) { const k = el.id.slice(5).toLowerCase(); menu.promo[k] = k === 'price' ? num(el.value) : el.value; return updateBar(); }
   if (!row) return;

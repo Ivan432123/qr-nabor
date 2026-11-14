@@ -231,6 +231,23 @@ await step('чужой токен не подходит', async () => {
   assert.equal((await call('GET', '/api/me', null, token.slice(0, -2) + 'xx')).status, 401);
 });
 
+await step('кабинет «Сам себе админ»: партнёру 198 ₽/мес (165 при оплате за год), срок по статусу', async () => {
+  const em = `cab${Date.now()}@example.ru`, ip = '9.9.9.9';
+  const reg = await register({ name: 'Кабинет Тест', email: em, phone: '+7 902 000-00-11', status: 'ИП', password: 'secret1', agree: true }, ip);
+  assert.equal(reg.status, 200, JSON.stringify(reg.data));
+  const tk = reg.data.token, pc = (await call('GET', '/api/me', null, tk)).data.partner.code;
+  await call('POST', '/api/lead', { name: 'Клиент', cafe: 'Кафе К', phone: '+79993332211', plan: 'start', ref: pc, city: 'Омск' }, null, '8.8.8.8');
+  const adm = (await call('POST', '/api/admin/login', { password: env.ADMIN_PASSWORD })).data.token;
+  const lead = (await call('GET', '/api/admin/data', null, adm)).data.leads.find(l => l.cafe === 'Кафе К');
+  assert.ok(lead, 'заявка не найдена');
+  await call('POST', '/api/admin/lead', { id: lead.id, status: 'paid', plan: 'start', months: 0, cabMonths: 3, cabBilling: 'month' }, adm);
+  assert.equal((await call('GET', '/api/me', null, tk)).data.stats.earned, 2950 + 3 * 198, 'набор + 3 мес × 198');
+  await call('POST', '/api/admin/lead', { id: lead.id, status: 'paid', plan: 'start', months: 2, billing: 'month', cabMonths: 12, cabBilling: 'year' }, adm);
+  assert.equal((await call('GET', '/api/me', null, tk)).data.stats.earned, 2950 + 2 * 158 + 12 * 165, 'поддержка и кабинет считаются отдельно');
+  await call('POST', '/api/admin/lead', { id: lead.id, status: 'paid', plan: 'start', months: 0, cabMonths: 100 }, adm);
+  assert.equal((await call('GET', '/api/me', null, tk)).data.stats.earned, 2950 + 24 * 198, 'потолок 24 месяца для статуса «Партнёр»');
+  const mine = (await call('GET', '/api/me', null, tk)).data.leads[0]; assert.equal(mine.cabMonths, 100);
+});
 // ---------- кабинет владельца: меню ----------
 {
   const cafeId = 'tcafe' + Date.now().toString(36), owner = `owner${Date.now()}@example.ru`;
@@ -254,6 +271,21 @@ await step('чужой токен не подходит', async () => {
     assert.equal(pub.data.data.promo.on, true);
     assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: 'net-takogo' })).status, 404);
     assert.ok(!JSON.stringify(pub.data).includes(owner), 'e-mail владельца не должен быть в публичном ответе');
+  });
+  await step('меню: добавление оплатившего кафе из админки (пустое меню + название), дубль кода запрещён', async () => {
+    const nid = cafeId + 'n', ne = `new${Date.now()}@example.ru`;
+    assert.equal((await call('POST', '/api/admin/cafe', { id: nid, name: 'Новое', owner_email: ne, create: true })).status, 401);
+    assert.equal((await call('POST', '/api/admin/cafe', { id: nid, name: 'Новое', create: true }, admin)).status, 400, 'без e-mail нельзя');
+    const r = await call('POST', '/api/admin/cafe', { id: nid, name: 'Новое кафе', owner_email: ne, active: 1, max_items: 40, create: true }, admin);
+    assert.equal(r.status, 200, JSON.stringify(r.data)); assert.equal(r.data.cafe.active, 1);
+    assert.equal((await call('POST', '/api/admin/cafe', { id: nid, name: 'Чужое', owner_email: 'x@example.ru', create: true }, admin)).status, 409, 'код занят');
+    const pub = (await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: nid })).data.data;
+    assert.equal(pub.items.length, 0); assert.equal(pub.brand.name, 'Новое кафе');
+    const tk = await ownerLogin(ne); assert.ok(tk, 'владелец входит по своей почте');
+    const m = (await call('GET', '/api/owner/menu', null, tk, '1.1.1.1', { cafe: nid })).data;
+    assert.equal(m.cafe.maxItems, 40); m.menu.items.push({ cat: 'main', name: 'Чай', price: 100 }); m.menu.brand = { name: 'Новое кафе', sub: 'Омск, ул. Ленина 1' };
+    assert.equal((await call('POST', '/api/owner/menu', { cafe: nid, menu: m.menu, baseVersion: m.version }, tk)).status, 200);
+    assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: nid })).data.data.brand.sub, 'Омск, ул. Ленина 1');
   });
   await step('меню: вход по коду; чужой email ничего не получает', async () => {
     const before = (globalThis.__outbox || []).length;

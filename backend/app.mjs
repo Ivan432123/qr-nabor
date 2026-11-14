@@ -6,7 +6,8 @@ export const RATES = {
   setup: { start: 2950, standard: 4450,     // 50% от набора: «Старт» 5 890 ₽, «Стандарт» 8 890 ₽
            start_promo: 1500, standard_promo: 2250 },  // акция для первых 10 заведений: 2 990 ₽ / 4 490 ₽ (тоже 50%)
   monthly: { start: 158, standard: 158, start_promo: 158, standard_promo: 158 },   // 20% от поддержки 790 ₽/мес (поддержка необязательна)
-  monthlyYear: 132,                         // при оплате за год (7 900 ₽ ≈ 658 ₽/мес) — 20%
+  monthlyYear: 132,
+  cabinet: 198, cabinetYear: 165,           // 20% от кабинета «Сам себе админ»: 990 ₽/мес или 9 900 ₽/год (825 ₽/мес)                         // при оплате за год (7 900 ₽ ≈ 658 ₽/мес) — 20%
   maxMonths: 24,
   team: [0.10, 0.05]                        // доля от заработка приглашённых партнёров: 1-й и 2-й уровень
 };
@@ -163,7 +164,8 @@ function leadEarned(l, tiers) {
   const t = tiers && tiers[l.partner_id];
   const cap = t ? (t.months == null ? Infinity : t.months) : RATES.maxMonths;
   const perMonth = l.billing === 'year' ? RATES.monthlyYear : RATES.monthly[plan];
-  return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * perMonth;
+  const perCab = l.cab_billing === 'year' ? RATES.cabinetYear : RATES.cabinet;
+  return RATES.setup[plan] + Math.min(Number(l.months) || 0, cap) * perMonth + Math.min(Number(l.cab_months) || 0, cap) * perCab;
 }
 function summarize(leads, payouts, teamIncome = 0, tiers) {
   const paid = leads.filter(qualified);
@@ -341,7 +343,7 @@ async function me(ctx) {
     partner: { name: p.name, email: p.email, phone: p.phone, code: p.code },
     stats: { ...summarize(leads, payouts, team.income, tiers), clicks30: daily.reduce((s, d) => s + d.clicks, 0), leads30: daily.reduce((s, d) => s + d.leads, 0), leadsTotal: leads.length },
     daily,
-    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, city: l.city || '', plan: l.plan, status: l.status, months: l.months, billing: l.billing || 'month', earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
+    leads: leads.map(l => ({ date: l.created_at, cafe: l.cafe, city: l.city || '', plan: l.plan, status: l.status, months: l.months, cabMonths: l.cab_months || 0, cabBilling: l.cab_billing || 'month', billing: l.billing || 'month', cabMonths: l.cab_months || 0, cabBilling: l.cab_billing || 'month', earned: leadEarned(l, tiers), pending: l.status === 'paid' && !qualified(l) })),
     payouts: payouts.map(x => ({ date: x.created_at, amount: x.amount, note: x.note, check: !!x.check_received })),
     tier,
     team: { ...team, invitedBy: inviter ? shortName(inviter.name) : null },
@@ -400,7 +402,7 @@ async function adminData(ctx) {
   const cafes = await db.allCafes().catch(() => []);   // таблица появляется после /api/setup — админка работает и без неё
   return json({
     cafes: cafes.sort((a, b) => (a.id < b.id ? -1 : 1)),
-    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, city: l.city || '', phone: l.phone, plan: l.plan, billing: l.billing || 'month', status: l.status, months: l.months,
+    leads: leads.map(l => ({ id: l.id, date: l.created_at, name: l.name, cafe: l.cafe, city: l.city || '', phone: l.phone, plan: l.plan, billing: l.billing || 'month', cabMonths: l.cab_months || 0, cabBilling: l.cab_billing || 'month', status: l.status, months: l.months,
       partner: pById[l.partner_id]?.code || null, partnerName: pById[l.partner_id]?.name || null, earned: l.partner_id ? leadEarned(l, tiers) : 0 })),
     partners: partners.map(p => {
       const pl = leads.filter(l => l.partner_id === p.id);
@@ -424,8 +426,10 @@ async function adminLead(ctx) {
   const plan = PLANS.includes(b.plan) ? b.plan : 'unknown';
   const months = Math.max(0, Math.min(120, parseInt(b.months, 10) || 0));
   const billing = b.billing === 'year' ? 'year' : 'month';
+  const cab_months = Math.max(0, Math.min(120, parseInt(b.cabMonths, 10) || 0));
+  const cab_billing = b.cabBilling === 'year' ? 'year' : 'month';
   const paid_at = status === 'paid' ? (cur.paid_at || now()) : '';
-  await db.updateLead(id, { status, plan, months, paid_at, billing });
+  await db.updateLead(id, { status, plan, months, paid_at, billing, cab_months, cab_billing });
   return json({ ok: true });
 }
 
@@ -528,6 +532,7 @@ export function cleanMenu(m, maxItems = 100) {
     items.push(o);
   }
   const out = { categories, items };
+  if (m.brand && typeof m.brand === 'object') out.brand = { name: clean(m.brand.name, 60), sub: clean(m.brand.sub, 100) };
   if (m.promo && typeof m.promo === 'object') {
     const pr = money(m.promo.price), name = clean(m.promo.name, 60);
     if (m.promo.on === true) {
@@ -629,7 +634,10 @@ async function adminCafe(ctx) {
     active: b.active === undefined ? (prev ? prev.active : 0) : (b.active ? 1 : 0),
     max_items: Math.min(500, Math.max(1, Math.round(Number(b.max_items ?? (prev && prev.max_items) ?? 100)) || 100)),
     created_at: prev ? prev.created_at : now() };
+  if (b.create && prev) return json({ error: `Кафе с кодом «${id}» уже есть. Выберите другой код.` }, 409);
+  if (!email && b.create) return json({ error: 'Укажите e-mail владельца' }, 400);
   let ver = null;
+  if (!b.menu && !(await db.latestMenu(id))) b.menu = { categories: [{ id: 'main', name: 'Меню' }], items: [], brand: { name: cafe.name, sub: '' } };   // новое кафе: пустое меню, владелец заполнит в кабинете
   if (b.menu) {
     const r = cleanMenu(b.menu, 500);
     if (r.error) return json({ error: r.error }, 400);

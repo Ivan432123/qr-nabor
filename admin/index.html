@@ -92,7 +92,7 @@ td.acts{white-space:nowrap}
       <input id="fSearch" placeholder="Поиск: заведение, имя, телефон, промокод" aria-label="Поиск">
     </div>
     <div class="box"><table id="leadsTbl"></table></div>
-    <p class="muted">«Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется, как только статус «Оплачено»: 50% за набор (2 950 / 4 450 ₽; в акцию 1 500 / 2 250 ₽) + 158 ₽ за каждый месяц поддержки, при оплате за год — 132 ₽ (24 / 36 / без ограничения — по статусу партнёра). Поддержка необязательна: если клиент её не взял — оставьте 0. Оплатил год — поставьте «За год» и прибавьте 12. Статусы считаются по оплаченным заведениям.</p>
+    <p class="muted">«Мес. кабинета» — сколько месяцев клиент оплатил кабинет «Сам себе админ» (990 ₽/мес или 9 900 ₽/год): партнёру 198 ₽ за месяц, при оплате за год — 165 ₽, срок по статусу, как у поддержки. «Мес. поддержки» — сколько месяцев клиент оплатил поддержку. Партнёру начисляется, как только статус «Оплачено»: 50% за набор (2 950 / 4 450 ₽; в акцию 1 500 / 2 250 ₽) + 158 ₽ за каждый месяц поддержки, при оплате за год — 132 ₽ (24 / 36 / без ограничения — по статусу партнёра). Поддержка необязательна: если клиент её не взял — оставьте 0. Оплатил год — поставьте «За год» и прибавьте 12. Статусы считаются по оплаченным заведениям.</p>
   </section>
 
   <section data-p="partners" hidden>
@@ -105,6 +105,17 @@ td.acts{white-space:nowrap}
   </section>
 
   <section data-p="cafes" hidden>
+    <form class="box" id="cafeForm" style="padding:16px;margin-bottom:12px">
+      <b>Добавить кафе, оплатившее «Сам себе админ»</b>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px">
+        <label>Название кафе<input id="cfName" required maxlength="80" placeholder="Кофейня «Зерно»"></label>
+        <label>Код (латиница, для ссылки)<input id="cfId" required maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="zerno"></label>
+        <label>E-mail владельца (по нему вход в кабинет)<input id="cfEmail" type="email" required maxlength="120"></label>
+        <label>Лимит позиций в меню<input id="cfMax" type="number" min="1" max="500" value="100"></label>
+      </div>
+      <p style="margin:12px 0 0"><button class="btn" type="submit">Добавить и включить кабинет</button></p>
+      <div id="cafeDone" hidden style="margin-top:12px"><b>Готово.</b> Перешлите владельцу:<textarea id="cafeMsg" readonly rows="6" style="width:100%;margin-top:6px"></textarea><button class="btn" type="button" id="cafeCopy" style="margin-top:6px">Скопировать</button></div>
+    </form>
     <div class="box"><table id="cafesTbl"></table></div>
     <p class="muted">Кабинет владельца: <b>qrstol.ru/cabinet/</b>. «Кабинет включён» — владелец может править меню сам (платный тариф); если выключить, меню для гостей продолжает работать, а правки идут через вас. Новое кафе заводится командой <code>node tools/seed-menu.mjs &lt;код&gt; --owner почта --active</code> — она же загружает меню со страницы кафе на сервер.</p>
   </section>
@@ -171,7 +182,7 @@ function renderCafes(){
 function renderLeads(){
   const f = $('fStatus').value, q = $('fSearch').value.trim().toLowerCase();
   const rows = data.leads.filter(l => (!f || l.status===f) && (!q || [l.cafe,l.name,l.phone,l.partner].join(' ').toLowerCase().includes(q)));
-  $('leadsTbl').innerHTML = rows.length ? '<thead><tr><th>Дата</th><th>Заведение</th><th>Контакт</th><th>Партнёр</th><th>Пакет</th><th>Статус</th><th>Мес. поддержки</th><th class="num">Партнёру</th><th></th></tr></thead><tbody>' +
+  $('leadsTbl').innerHTML = rows.length ? '<thead><tr><th>Дата</th><th>Заведение</th><th>Контакт</th><th>Партнёр</th><th>Пакет</th><th>Статус</th><th>Мес. поддержки</th><th>Мес. кабинета</th><th class="num">Партнёру</th><th></th></tr></thead><tbody>' +
     rows.map(l=>`<tr data-id="${l.id}">
       <td>${fmt(l.date)}</td>
       <td><b>${esc(l.cafe)}</b><br><span class="muted">${esc(l.city||'город не указан')}</span></td>
@@ -180,6 +191,7 @@ function renderLeads(){
       <td><select data-f="plan" aria-label="Пакет"><option value="start"${l.plan==='start'?' selected':''}>Старт</option><option value="standard"${l.plan==='standard'?' selected':''}>Стандарт</option><option value="start_promo"${l.plan==='start_promo'?' selected':''}>Старт — акция (2 990)</option><option value="standard_promo"${l.plan==='standard_promo'?' selected':''}>Стандарт — акция (4 490)</option><option value="unknown"${l.plan==='unknown'?' selected':''}>Не выбран</option></select><select data-f="billing" aria-label="Оплата поддержки" style="margin-top:6px"><option value="month"${l.billing!=='year'?' selected':''}>Помесячно</option><option value="year"${l.billing==='year'?' selected':''}>За год</option></select></td>
       <td><select data-f="status" aria-label="Статус">${Object.entries(ST).map(([k,v])=>`<option value="${k}"${l.status===k?' selected':''}>${v[0]}</option>`).join('')}</select></td>
       <td><input type="number" min="0" max="120" data-f="months" value="${l.months}" aria-label="Месяцев поддержки"></td>
+      <td><input type="number" min="0" max="120" data-f="cabMonths" value="${l.cabMonths||0}" aria-label="Месяцев кабинета"><select data-f="cabBilling" aria-label="Оплата кабинета" style="margin-top:6px"><option value="month"${l.cabBilling!=='year'?' selected':''}>Помесячно</option><option value="year"${l.cabBilling==='year'?' selected':''}>За год</option></select></td>
       <td class="num">${l.partner ? rub(l.earned) : '—'}</td>
       <td class="acts"><button class="btn" data-save="${l.id}">Сохранить</button><button class="btn-del" data-del="lead" data-id="${esc(l.id)}" data-label="${esc('заявку «'+l.cafe+'»')}" title="Удалить" aria-label="Удалить">✕</button></td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td class="empty">Заявок нет.</td></tr></tbody>';
@@ -209,7 +221,7 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-save]'); if (!b) return;
   const tr = b.closest('tr'), g = f => tr.querySelector(`[data-f="${f}"]`).value;
   b.disabled = true;
-  try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), billing: g('billing'), months: g('months') }); await load(); toast('Сохранено'); }
+  try{ await api('/api/admin/lead', { id: b.dataset.save, status: g('status'), plan: g('plan'), billing: g('billing'), months: g('months'), cabMonths: g('cabMonths'), cabBilling: g('cabBilling') }); await load(); toast('Сохранено'); }
   catch(err){ toast(err.message); b.disabled = false; }
 });
 document.addEventListener('click', async e => {
@@ -239,6 +251,23 @@ document.addEventListener('submit', async e => {
   try{ await api('/api/admin/payout', { partner: f.dataset.pay, amount: amount.value, note: note.value, check }); await load(); toast('Выплата записана'); }
   catch(err){ toast(err.message); }
 });
+const TR = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'c',ч:'ch',ш:'sh',щ:'sh',ы:'y',э:'e',ю:'yu',я:'ya'};
+$('cfName').addEventListener('input', () => { if ($('cfId').dataset.touched) return; $('cfId').value = [...$('cfName').value.toLowerCase()].map(c => TR[c] ?? c).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30); });
+$('cfId').addEventListener('input', () => { $('cfId').dataset.touched = '1'; });
+$('cafeForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const id = $('cfId').value.trim(), email = $('cfEmail').value.trim(), btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try{
+    await api('/api/admin/cafe', { create: true, id, name: $('cfName').value.trim(), owner_email: email, max_items: $('cfMax').value, active: true });
+    $('cafeMsg').value = `Кабинет для меню «${$('cfName').value.trim()}» подключён.\n\nВход: https://qrstol.ru/cabinet/ — введите e-mail ${email}, придёт код (пароль не нужен).\nВ кабинете: цены, блюда, фото, стоп-лист, акция.\n\nСсылка на меню для гостей: https://qrstol.ru/m/?c=${id}\nДля QR-кода на столе — с номером стола в конце, например https://qrstol.ru/m/?c=${id}#5`;
+    $('cafeDone').hidden = false; e.target.querySelectorAll('input').forEach(i => { if (i.id !== 'cfMax') i.value = ''; }); delete $('cfId').dataset.touched;
+    await load(); show_cafes_tab();
+  }catch(err){ toast(err.message); }
+  btn.disabled = false;
+});
+$('cafeCopy').onclick = () => { $('cafeMsg').select(); try{ navigator.clipboard.writeText($('cafeMsg').value); }catch(e){ document.execCommand('copy'); } toast('Скопировано'); };
+function show_cafes_tab(){ const t = document.querySelector('.tab[data-t="cafes"]'); if (t) t.click(); }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-cafe-save]'); if (!b) return;
   const row = b.closest('tr'), g = k => row.querySelector(`[data-cf="${k}"]`);
