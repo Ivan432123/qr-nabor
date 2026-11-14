@@ -287,6 +287,26 @@ await step('кабинет «Сам себе админ»: партнёру 198 
     assert.equal((await call('POST', '/api/owner/menu', { cafe: nid, menu: m.menu, baseVersion: m.version }, tk)).status, 200);
     assert.equal((await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: nid })).data.data.brand.sub, 'Омск, ул. Ленина 1');
   });
+  await step('меню: подключение готового QR-меню — меню берётся со страницы <код>.qrstol.ru', async () => {
+    const fs = await import('node:fs'), real = globalThis.fetch, asked = [];
+    globalThis.fetch = async u => { asked.push(String(u)); const m = String(u).match(/^https:\/\/([a-z0-9-]+)\.qrstol\.ru\/$/); const f = m && `./../cafes/${m[1]}/index.html`;
+      return f && fs.existsSync(new URL(f, import.meta.url)) ? { ok: true, text: async () => fs.readFileSync(new URL(f, import.meta.url), 'utf8') } : { ok: false, status: 404 }; };
+    try {
+      const em = `imp${Date.now()}@example.ru`;
+      assert.equal((await call('POST', '/api/admin/cafe', { id: 'Bad Code!', owner_email: em, importFromPage: true, create: true }, admin)).status, 400, 'плохой код');
+      assert.equal((await call('POST', '/api/admin/cafe', { id: 'net-takoy-stranicy', owner_email: em, importFromPage: true, create: true }, admin)).status, 400, 'страницы нет');
+      assert.ok(!asked.some(u => !/^https:\/\/[a-z0-9-]+\.qrstol\.ru\/$/.test(u)), 'ходим только на *.qrstol.ru');
+      const r = await call('POST', '/api/admin/cafe', { id: 'chaikhona', owner_email: em, importFromPage: true, create: true, max_items: 100, active: 1 }, admin);
+      if (r.status === 409) { await call('POST', '/api/admin/delete', { type: 'cafe', id: 'chaikhona' }, admin); }
+      const r2 = r.status === 409 ? await call('POST', '/api/admin/cafe', { id: 'chaikhona', owner_email: em, importFromPage: true, create: true, max_items: 100, active: 1 }, admin) : r;
+      assert.equal(r2.status, 200, JSON.stringify(r2.data));
+      const pub = (await call('GET', '/api/menu', null, null, '1.1.1.1', { cafe: 'chaikhona' })).data.data;
+      assert.equal(pub.items.length, 38, 'все блюда Чайхоны'); assert.ok(pub.categories.length >= 7);
+      assert.ok(pub.items.find(i => i.id === 'plov1').photo.startsWith('https://chaikhona.qrstol.ru/img/'), 'относительные фото стали полными адресами');
+      assert.ok(pub.brand.name, 'название заведения');
+      await call('POST', '/api/admin/delete', { type: 'cafe', id: 'chaikhona' }, admin);
+    } finally { globalThis.fetch = real; }
+  });
   await step('меню: вход по коду; чужой email ничего не получает', async () => {
     const before = (globalThis.__outbox || []).length;
     const r = await call('POST', '/api/owner/code', { email: 'stranger@example.ru' }, null, '6.6.6.6');

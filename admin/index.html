@@ -108,11 +108,12 @@ td.acts{white-space:nowrap}
     <form class="box" id="cafeForm" style="padding:16px;margin-bottom:12px">
       <b>Добавить кафе, оплатившее «Сам себе админ»</b>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px">
-        <label>Название кафе<input id="cfName" required maxlength="80" placeholder="Кофейня «Зерно»"></label>
+        <label>Название кафе<input id="cfName" maxlength="80" placeholder="Кофейня «Зерно»"></label>
         <label>Код (латиница, для ссылки)<input id="cfId" required maxlength="40" pattern="[a-zA-Z0-9_-]+" placeholder="zerno"></label>
         <label>E-mail владельца (по нему вход в кабинет)<input id="cfEmail" type="email" required maxlength="120"></label>
         <label>Лимит позиций в меню<input id="cfMax" type="number" min="1" max="500" value="100"></label>
       </div>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;cursor:pointer"><input type="checkbox" id="cfImport" style="width:auto;margin-top:4px"><span><b>У кафе уже есть готовое QR-меню</b> — взять меню (блюда, цены, категории, акцию, название) со страницы <b>КОД.qrstol.ru</b>. Код тогда = адрес страницы (например, <code>zerno</code> для zerno.qrstol.ru). Уже напечатанные QR-коды продолжат работать и будут показывать правки владельца.</span></label>
       <p style="margin:12px 0 0"><button class="btn" type="submit">Добавить и включить кабинет</button></p>
       <div id="cafeDone" hidden style="margin-top:12px"><b>Готово.</b> Перешлите владельцу:<textarea id="cafeMsg" readonly rows="6" style="width:100%;margin-top:6px"></textarea><button class="btn" type="button" id="cafeCopy" style="margin-top:6px">Скопировать</button></div>
     </form>
@@ -257,11 +258,14 @@ $('cfId').addEventListener('input', () => { $('cfId').dataset.touched = '1'; });
 $('cafeForm').addEventListener('submit', async e => {
   e.preventDefault();
   const id = $('cfId').value.trim(), email = $('cfEmail').value.trim(), btn = e.target.querySelector('button[type=submit]');
+  const imp = $('cfImport').checked, nm = $('cfName').value.trim();
+  if (!imp && !nm) return toast('Укажите название кафе');
   btn.disabled = true;
   try{
-    await api('/api/admin/cafe', { create: true, id, name: $('cfName').value.trim(), owner_email: email, max_items: $('cfMax').value, active: true });
-    $('cafeMsg').value = `Кабинет для меню «${$('cfName').value.trim()}» подключён.\n\nВход: https://qrstol.ru/cabinet/ — введите e-mail ${email}, придёт код (пароль не нужен).\nВ кабинете: цены, блюда, фото, стоп-лист, акция.\n\nСсылка на меню для гостей: https://qrstol.ru/m/?c=${id}\nДля QR-кода на столе — с номером стола в конце, например https://qrstol.ru/m/?c=${id}#5`;
-    $('cafeDone').hidden = false; e.target.querySelectorAll('input').forEach(i => { if (i.id !== 'cfMax') i.value = ''; }); delete $('cfId').dataset.touched;
+    const r = await api('/api/admin/cafe', { create: true, id, name: nm, owner_email: email, max_items: $('cfMax').value, active: true, importFromPage: imp });
+    const title = nm || r.cafe.name, guest = imp ? `https://${id}.qrstol.ru/` : `https://qrstol.ru/m/?c=${id}`;
+    $('cafeMsg').value = `Кабинет для меню «${title}» подключён.\n\nВход: https://qrstol.ru/cabinet/ — введите e-mail ${email}, придёт код (пароль не нужен).\nВ кабинете: цены, блюда, фото, стоп-лист, акция.\n\n` + (imp ? `Ваше меню для гостей: ${guest}\nУже напечатанные QR-коды работают как раньше — изменения из кабинета появятся в них сразу.` : `Ссылка на меню для гостей: ${guest}\nДля QR-кода на столе — с номером стола в конце, например ${guest}#5`);
+    $('cafeDone').hidden = false; e.target.querySelectorAll('input').forEach(i => { if (i.type === 'checkbox') i.checked = false; else if (i.id !== 'cfMax') i.value = ''; }); delete $('cfId').dataset.touched;
     await load(); show_cafes_tab();
   }catch(err){ toast(err.message); }
   btn.disabled = false;

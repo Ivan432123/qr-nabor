@@ -546,6 +546,31 @@ export function cleanMenu(m, maxItems = 100) {
   return { menu: out };
 }
 
+// Импорт готового QR-меню: берём страницу <код>.qrstol.ru, достаём блок настроек (категории, блюда, акция) и выполняем его в пустой песочнице.
+// Адрес строго https://<код>.qrstol.ru/ — наши собственные страницы, больше никуда сервер не ходит.
+const ENT = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+const unent = t => String(t).replace(/&(nbsp|amp|lt|gt|quot|#39);/g, m => ENT[m]).trim();
+export async function importPageMenu(code) {
+  if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(code)) throw new Error('Код для готового меню — только маленькие латинские буквы, цифры и дефис (как в адресе страницы)');
+  const base = `https://${code}.qrstol.ru/`;
+  let html;
+  try { const r = await fetch(base, { signal: AbortSignal.timeout(10000) }); if (!r.ok) throw new Error(String(r.status)); html = await r.text(); }
+  catch (e) { throw new Error(`Не удалось открыть страницу ${base} (${String(e.message || e).slice(0, 80)}). Готовое меню должно быть выложено по этому адресу.`); }
+  const a = html.indexOf('/* ===== НАСТРОЙКИ'), z = html.indexOf('/* ===== конец настроек');
+  if (a < 0 || z < a) throw new Error('На странице не найден блок настроек меню — это не наш шаблон QR-меню. Заполните меню в кабинете вручную.');
+  const vm = await import('node:vm');
+  let d;
+  try { d = JSON.parse(JSON.stringify(vm.runInNewContext(html.slice(a, z) + '\n;({ name: CAFE.name, categories: CATEGORIES, items: MENU, promo: typeof PROMO === "undefined" ? null : PROMO })', Object.create(null), { timeout: 1000 }))); }
+  catch (e) { throw new Error('Не получилось прочитать меню со страницы: ' + String(e.message || e).slice(0, 100)); }
+  const abs = u => /^(https:|img\/)/.test(String(u || '')) ? (String(u).startsWith('img/') ? base + u : u) : '';   // относительные фото → полный адрес страницы кафе
+  d.items = (d.items || []).map(it => (it && it.photo ? { ...it, photo: abs(it.photo) } : it));
+  const note = (html.match(/id="promo"[^>]*>\s*<span>\s*<small>([^<]*)<\/small>/) || [])[1] || '';
+  const sub = (html.match(/<div class="sub"[^>]*>([^<]*)<\/div>/) || [])[1] || '';
+  const real = d.promo && d.promo.name && d.promo.name !== '—' && Number(d.promo.price) > 0;
+  return { categories: d.categories, items: d.items, brand: { name: unent(d.name || ''), sub: unent(sub) },
+    promo: real ? { on: true, ...d.promo, note: unent(note) } : { on: false } };
+}
+
 // Публичное меню для страницы кафе: без скрытых блюд (стоп-лист)
 async function publicMenu({ req, db }) {
   const id = slug((req.query || {}).cafe);
@@ -638,6 +663,10 @@ async function adminCafe(ctx) {
   if (b.create && prev) return json({ error: `Кафе с кодом «${id}» уже есть. Выберите другой код.` }, 409);
   if (!email && b.create) return json({ error: 'Укажите e-mail владельца' }, 400);
   let ver = null;
+  if (b.importFromPage) {
+    try { b.menu = await importPageMenu(id); } catch (e) { return json({ error: String(e.message || e) }, 400); }
+    if (!b.name && !prev) cafe.name = b.menu.brand.name || id;
+  }
   if (!b.menu && !(await db.latestMenu(id))) b.menu = { categories: [{ id: 'main', name: 'Меню' }], items: [], brand: { name: cafe.name, sub: '' } };   // новое кафе: пустое меню, владелец заполнит в кабинете
   if (b.menu) {
     const r = cleanMenu(b.menu, 500);
