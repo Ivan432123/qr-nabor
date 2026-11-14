@@ -61,6 +61,8 @@ jobs:
       TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+      TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -150,6 +152,7 @@ jobs:
           zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs mail.mjs package.json package-lock.json
           MAIL_ENV=()
           if [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then MAIL_ENV=(--environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS"); echo "::notice::Коды на почту включены ($SMTP_USER)"; else echo "::notice::Коды на почту выключены: нет секретов SMTP_USER и SMTP_PASS"; fi
+          if [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ]; then MAIL_ENV+=(--environment "TG_BOT_TOKEN=$TG_BOT_TOKEN" --environment "TG_CHAT_ID=$TG_CHAT_ID"); echo "::notice::Уведомления в Telegram включены"; else echo "::notice::Уведомления в Telegram выключены: нет секретов TG_BOT_TOKEN / TG_CHAT_ID"; fi
           OUT=$(yc serverless function version create \
             --function-name nabor-api \
             --runtime nodejs22 \
@@ -161,7 +164,7 @@ jobs:
             --environment "YDB_CONNECTION_STRING=$YDB_EP" \
             --environment "ADMIN_PASSWORD_B64=$(printf '%s' "$ADMIN_PASSWORD" | base64 -w0)" \
             --environment "TOKEN_SECRET_B64=$(printf '%s' "$TOKEN_SECRET" | base64 -w0)" \
-            "${MAIL_ENV[@]}" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" -e "${SMTP_PASS:-@@none@@}" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
+            "${MAIL_ENV[@]}" 2>&1) || { echo "::error::Версия функции: $(echo "$OUT" | grep -v -e "$ADMIN_PASSWORD" -e "$TOKEN_SECRET" -e "${SMTP_PASS:-@@none@@}" -e "${TG_BOT_TOKEN:-@@none@@}" | tr '\n' ' ' | cut -c1-900)"; exit 1; }
           echo "Версия выложена"
 
       - name: Создать таблицы и проверить сервер

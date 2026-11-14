@@ -248,6 +248,25 @@ await step('кабинет «Сам себе админ»: партнёру 198 
   assert.equal((await call('GET', '/api/me', null, tk)).data.stats.earned, 2950 + 24 * 198, 'потолок 24 месяца для статуса «Партнёр»');
   const mine = (await call('GET', '/api/me', null, tk)).data.leads[0]; assert.equal(mine.cabMonths, 100);
 });
+await step('Telegram: заявка и новый партнёр уходят в бот; сбой Telegram заявку не ломает', async () => {
+  const real = globalThis.fetch, sent = []; let fail = false;
+  for (const e of [env, process.env]) Object.assign(e, { TG_BOT_TOKEN: '123:TEST', TG_CHAT_ID: '777' });
+  globalThis.fetch = async (u, o) => { if (!String(u).startsWith('https://api.telegram.org/bot123:TEST/sendMessage')) return real(u, o); if (fail) throw new Error('network down'); sent.push(JSON.parse(o.body)); return { ok: true }; };
+  try {
+    let r = await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе «ТГ»', city: 'Омск', phone: '+7 913 111-22-33', plan: 'standard' }, null, '31.1.1.1');
+    assert.equal(r.status, 200); assert.equal(sent.length, 1);
+    assert.equal(sent[0].chat_id, '777'); assert.ok(/Кафе «ТГ»/.test(sent[0].text) && /\+7 913 111-22-33/.test(sent[0].text) && /Стандарт/.test(sent[0].text) && /прямая заявка/.test(sent[0].text), sent[0].text);
+    const tem = `tg${Date.now()}@example.ru`;
+    r = await register({ name: 'Тимур Тестов', email: tem, phone: '+7 902 555-44-33', status: 'ИП', password: 'secret1', agree: true, source: 'avito-omsk' }, '31.2.2.2');
+    assert.equal(r.status, 200); assert.ok(sent.some(m => /Новый партнёр: Тимур Тестов/.test(m.text) && /avito-omsk/.test(m.text)), 'уведомление о партнёре');
+    assert.equal((await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе «Бот»', phone: '123' }, null, '31.1.1.2')).status, 400);
+    assert.equal(sent.length, 2, 'неверная заявка в Telegram не уходит');
+    fail = true;
+    r = await call('POST', '/api/lead', { name: 'Анна', cafe: 'Кафе «Сбой»', phone: '+7 913 111-22-34' }, null, '31.1.1.3');
+    assert.equal(r.status, 200, 'при сбое Telegram заявка принимается');
+    const d = (await call('GET', '/api/admin/data', null, admin)).data; assert.ok(d.leads.some(l => l.cafe === 'Кафе «Сбой»'), 'заявка сохранена');
+  } finally { globalThis.fetch = real; for (const e of [env, process.env]) { delete e.TG_BOT_TOKEN; delete e.TG_CHAT_ID; } }
+});
 // ---------- кабинет владельца: меню ----------
 {
   const cafeId = 'tcafe' + Date.now().toString(36), owner = `owner${Date.now()}@example.ru`;

@@ -64,6 +64,17 @@ export async function handle(req, db, env, mail = { enabled: false }) {
   }
 }
 
+/* ---------- уведомления в Telegram ---------- */
+// Заявки и новые партнёры дублируются в Telegram. Без TG_BOT_TOKEN/TG_CHAT_ID — молча выключено.
+// Сбой Telegram никогда не ломает заявку: ждём не дольше 3 секунд (функция может завершиться раньше, чем уйдёт запрос без await).
+async function notify(env, text) {
+  if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text: String(text).slice(0, 3500), disable_web_page_preview: true }), signal: AbortSignal.timeout(3000) });
+  } catch (e) { console.error('telegram', String(e && e.message || e).slice(0, 120)); }
+}
+
 /* ---------- помощники ---------- */
 function parseBody(text, max = 20000) {
   text = String(text || '');
@@ -257,6 +268,7 @@ async function register(ctx) {
   const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
   const id = newId();
   await db.insertPartner({ id, name, email, phone, status, source, city, code, pass_hash: await hashPassword(password, salt), salt, ip_hash: ih, created_at: now(), referrer_id });
+  await notify(env, `🤝 Новый партнёр: ${name}\n${status}${city ? ' · ' + city : ''}\nИсточник: ${source || '—'}\nКод: ${code}${referrer_id ? ' (приглашён партнёром)' : ''}`);
   return json({ token: await signToken({ role: 'partner', id }, env), code, invited: !!referrer_id });
 }
 
@@ -381,6 +393,9 @@ async function lead(ctx) {
     if (p) { partnerId = p.id; break; }
   }
   await db.insertLead({ id: newId(), created_at: now(), name, cafe, city, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih, billing: 'month' });
+  const PL = { start: 'Старт', standard: 'Стандарт', unknown: 'не выбран' };
+  const refCode = partnerId ? (await db.partnerById(partnerId))?.code : '';
+  await notify(ctx.env, `🆕 Новая заявка\nЗаведение: ${cafe}${city ? ' · ' + city : ''}\nКонтакт: ${name}, ${phone}\nПакет: ${PL[plan] || plan}\nПартнёр: ${refCode || 'нет (прямая заявка)'}`);
   return json({ ok: true, withPromo: !!partnerId });
 }
 
