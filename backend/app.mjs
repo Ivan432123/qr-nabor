@@ -34,6 +34,7 @@ export async function handle(req, db, env, mail = { enabled: false }) {
     if (m === 'GET' && (path === '' || path === '/api')) return json({ ok: true, service: 'nabor-api', emailCodes: !!mail.enabled });
     const ctx = { req, db, env, mail, b: parseBody(req.body, /^\/api\/(owner\/menu|admin\/cafe)$/.test(path) ? 200000 : 20000) };
     if (m === 'POST' && path === '/api/setup') return await setup(ctx);
+    if (m === 'POST' && path === '/api/tg-test') return await tgTest(ctx);
     if (m === 'POST' && path === '/api/register') return await register(ctx);
     if (m === 'POST' && path === '/api/login') return await login(ctx);
     if (m === 'POST' && path === '/api/password/code') return await passwordCode(ctx);
@@ -67,12 +68,23 @@ export async function handle(req, db, env, mail = { enabled: false }) {
 /* ---------- уведомления в Telegram ---------- */
 // Заявки и новые партнёры дублируются в Telegram. Без TG_BOT_TOKEN/TG_CHAT_ID — молча выключено.
 // Сбой Telegram никогда не ломает заявку: ждём не дольше 3 секунд (функция может завершиться раньше, чем уйдёт запрос без await).
-async function notify(env, text) {
-  if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return;
+async function notify(env, text, timeoutMs = 3000) {
+  if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return { ok: false, error: 'нет TG_BOT_TOKEN / TG_CHAT_ID в окружении функции' };
+  const t0 = Date.now();
   try {
-    await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text: String(text).slice(0, 3500), disable_web_page_preview: true }), signal: AbortSignal.timeout(3000) });
-  } catch (e) { console.error('telegram', String(e && e.message || e).slice(0, 120)); }
+    const r = await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text: String(text).slice(0, 3500), disable_web_page_preview: true }), signal: AbortSignal.timeout(timeoutMs) });
+    if (!r.ok) {
+      const body = (await r.text().catch(() => '')).replace(/bot\d+:[\w-]+/g, 'bot***').slice(0, 200);
+      console.error('telegram http', r.status, body);
+      return { ok: false, status: r.status, error: body, ms: Date.now() - t0 };
+    }
+    return { ok: true, status: r.status, ms: Date.now() - t0 };
+  } catch (e) {
+    const msg = String(e && e.message || e).slice(0, 120) + (e && e.cause ? ' / ' + String(e.cause.code || e.cause.message || e.cause).slice(0, 80) : '');
+    console.error('telegram', msg);
+    return { ok: false, error: msg, ms: Date.now() - t0 };
+  }
 }
 
 /* ---------- помощники ---------- */
@@ -220,6 +232,15 @@ async function setup(ctx) {
   if (!viaBody && !safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD)) return json({ error: 'Нет доступа' }, 401);
   await db.setup();
   return json({ ok: true });
+}
+
+// Диагностика уведомлений: админ-пароль в теле, ответ показывает, что именно вернул Telegram (токен не раскрывается).
+async function tgTest(ctx) {
+  const { req, env } = ctx;
+  const ok = safeEqual(String(ctx.b.password || ''), env.ADMIN_PASSWORD) || safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD);
+  if (!ok) return json({ error: 'Нет доступа' }, 401);
+  const r = await notify(env, '🔧 Проверка уведомлений из функции nabor-api', 10000);
+  return json({ tokenSet: !!env.TG_BOT_TOKEN, chatSet: !!env.TG_CHAT_ID, ...r });
 }
 
 /* ---------- партнёры ---------- */
