@@ -152,7 +152,6 @@ jobs:
           zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs mail.mjs package.json package-lock.json
           MAIL_ENV=()
           if [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then MAIL_ENV=(--environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS"); echo "::notice::Коды на почту включены ($SMTP_USER)"; else echo "::notice::Коды на почту выключены: нет секретов SMTP_USER и SMTP_PASS"; fi
-          if [ -n "$TG_BOT_TOKEN" ] && [ -n "$TG_CHAT_ID" ]; then MAIL_ENV+=(--environment "TG_BOT_TOKEN=$TG_BOT_TOKEN" --environment "TG_CHAT_ID=$TG_CHAT_ID"); echo "::notice::Уведомления в Telegram включены"; else echo "::notice::Уведомления в Telegram выключены: нет секретов TG_BOT_TOKEN / TG_CHAT_ID"; fi
           OUT=$(yc serverless function version create \
             --function-name nabor-api \
             --runtime nodejs22 \
@@ -181,7 +180,7 @@ jobs:
           SB=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
           R=$(curl -sS -m 60 -X POST -H 'Content-Type: application/json' -d "$SB" "$URL?r=/api/setup" 2>&1)
           echo "$R" | grep -q '"ok":true' || { echo "::error::Создание таблиц: $(echo "$R" | cut -c1-900)"; exit 1; }
-          if [ -n "$TG_BOT_TOKEN" ]; then echo "::notice::Проверка Telegram из функции: $(curl -sS -m 40 -X POST -H 'Content-Type: application/json' -d "$SB" "$URL?r=/api/tg-test" 2>&1 | cut -c1-400)"; fi
+          echo "::notice::Проверка уведомлений из функции: $(curl -sS -m 40 -X POST -H 'Content-Type: application/json' -d "$SB" "$URL?r=/api/tg-test" 2>&1 | cut -c1-400)"
           R=$(curl -sS -m 30 "$URL?r=/api/check-code&code=TEST00" 2>&1)
           echo "$R" | grep -q '"valid":false' || { echo "::error::Запрос к базе: $(echo "$R" | cut -c1-900)"; exit 1; }
           C=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://ivan432123.github.io' -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: x-auth' "$URL?r=/api/admin/data")
