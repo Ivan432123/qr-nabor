@@ -250,7 +250,7 @@ await step('кабинет «Сам себе админ»: партнёру 198 
 });
 await step('Telegram: заявка и новый партнёр уходят в бот; сбой Telegram заявку не ломает', async () => {
   const real = globalThis.fetch, sent = []; let fail = false;
-  for (const e of [env, process.env]) Object.assign(e, { TG_BOT_TOKEN: '123:TEST', TG_CHAT_ID: '777' });
+  for (const e of [env, process.env]) Object.assign(e, { TG_BOT_TOKEN: '123:TEST', TG_CHAT_ID: '777', NOTIFY_EMAIL: 'owner@example.ru' });
   globalThis.fetch = async (u, o) => { if (!String(u).startsWith('https://api.telegram.org/bot123:TEST/sendMessage')) return real(u, o); if (fail) throw new Error('network down'); sent.push(JSON.parse(o.body)); return { ok: true }; };
   try {
     let r = await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе «ТГ»', city: 'Омск', phone: '+7 913 111-22-33', plan: 'standard' }, null, '31.1.1.1');
@@ -261,11 +261,17 @@ await step('Telegram: заявка и новый партнёр уходят в 
     assert.equal(r.status, 200); assert.ok(sent.some(m => /Новый партнёр: Тимур Тестов/.test(m.text) && /avito-omsk/.test(m.text)), 'уведомление о партнёре');
     assert.equal((await call('POST', '/api/lead', { name: 'Пётр', cafe: 'Кафе «Бот»', phone: '123' }, null, '31.1.1.2')).status, 400);
     assert.equal(sent.length, 2, 'неверная заявка в Telegram не уходит');
+    const mails = () => (globalThis.__outbox || []).filter(x => x.to === 'owner@example.ru');
+    assert.ok(mails().some(x => /Новая заявка/.test(x.subject) && /Кафе «ТГ»/.test(x.text)), 'заявка дублируется на почту');
+    assert.ok(mails().some(x => /Новый партнёр/.test(x.subject)), 'партнёр дублируется на почту');
+    assert.ok(!mails().some(x => /Кафе «Бот»/.test(x.text)), 'неверная заявка на почту не уходит');
+    const nMail = mails().length;
     fail = true;
     r = await call('POST', '/api/lead', { name: 'Анна', cafe: 'Кафе «Сбой»', phone: '+7 913 111-22-34' }, null, '31.1.1.3');
     assert.equal(r.status, 200, 'при сбое Telegram заявка принимается');
+    assert.equal(mails().length, nMail + 1, 'при сбое Telegram письмо всё равно уходит');
     const d = (await call('GET', '/api/admin/data', null, admin)).data; assert.ok(d.leads.some(l => l.cafe === 'Кафе «Сбой»'), 'заявка сохранена');
-  } finally { globalThis.fetch = real; for (const e of [env, process.env]) { delete e.TG_BOT_TOKEN; delete e.TG_CHAT_ID; } }
+  } finally { globalThis.fetch = real; for (const e of [env, process.env]) { delete e.TG_BOT_TOKEN; delete e.TG_CHAT_ID; delete e.NOTIFY_EMAIL; } }
 });
 // ---------- кабинет владельца: меню ----------
 {

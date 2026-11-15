@@ -68,7 +68,27 @@ export async function handle(req, db, env, mail = { enabled: false }) {
 /* ---------- уведомления в Telegram ---------- */
 // Заявки и новые партнёры дублируются в Telegram. Без TG_BOT_TOKEN/TG_CHAT_ID — молча выключено.
 // Сбой Telegram никогда не ломает заявку: ждём не дольше 3 секунд (функция может завершиться раньше, чем уйдёт запрос без await).
-async function notify(env, text, timeoutMs = 3000) {
+async function notify(ctx, text, timeoutMs = 3000) {
+  const [tg, email] = await Promise.all([notifyTelegram(ctx.env, text, timeoutMs), notifyEmail(ctx, text)]);
+  return { telegram: tg, email };
+}
+
+// Дубль на почту: Telegram из облака Яндекса может быть недоступен, а SMTP работает. Адрес — NOTIFY_EMAIL или сам ящик отправителя.
+async function notifyEmail({ env, mail }, text) {
+  const to = env.NOTIFY_EMAIL || env.SMTP_USER;
+  if (!mail || !mail.enabled || !to) return { ok: false, error: 'почта не настроена' };
+  const t0 = Date.now();
+  try {
+    await mail.send(to, String(text).split('\n')[0].slice(0, 100), String(text).slice(0, 3500));
+    return { ok: true, ms: Date.now() - t0 };
+  } catch (e) {
+    const msg = String(e && e.message || e).slice(0, 120);
+    console.error('notify email', msg);
+    return { ok: false, error: msg, ms: Date.now() - t0 };
+  }
+}
+
+async function notifyTelegram(env, text, timeoutMs) {
   if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) return { ok: false, error: 'нет TG_BOT_TOKEN / TG_CHAT_ID в окружении функции' };
   const t0 = Date.now();
   try {
@@ -239,7 +259,7 @@ async function tgTest(ctx) {
   const { req, env } = ctx;
   const ok = safeEqual(String(ctx.b.password || ''), env.ADMIN_PASSWORD) || safeEqual(header(req, 'X-Auth') || header(req, 'Authorization'), 'Bearer ' + env.ADMIN_PASSWORD);
   if (!ok) return json({ error: 'Нет доступа' }, 401);
-  const r = await notify(env, '🔧 Проверка уведомлений из функции nabor-api', 10000);
+  const r = await notify(ctx, '🔧 Проверка уведомлений из функции nabor-api', 10000);
   return json({ tokenSet: !!env.TG_BOT_TOKEN, chatSet: !!env.TG_CHAT_ID, ...r });
 }
 
@@ -289,7 +309,7 @@ async function register(ctx) {
   const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
   const id = newId();
   await db.insertPartner({ id, name, email, phone, status, source, city, code, pass_hash: await hashPassword(password, salt), salt, ip_hash: ih, created_at: now(), referrer_id });
-  await notify(env, `🤝 Новый партнёр: ${name}\n${status}${city ? ' · ' + city : ''}\nИсточник: ${source || '—'}\nКод: ${code}${referrer_id ? ' (приглашён партнёром)' : ''}`);
+  await notify(ctx, `🤝 Новый партнёр: ${name}\n${status}${city ? ' · ' + city : ''}\nИсточник: ${source || '—'}\nКод: ${code}${referrer_id ? ' (приглашён партнёром)' : ''}`);
   return json({ token: await signToken({ role: 'partner', id }, env), code, invited: !!referrer_id });
 }
 
@@ -416,7 +436,7 @@ async function lead(ctx) {
   await db.insertLead({ id: newId(), created_at: now(), name, cafe, city, phone, plan, partner_id: partnerId, status: 'new', months: 0, paid_at: '', ip_hash: ih, billing: 'month' });
   const PL = { start: 'Старт', standard: 'Стандарт', unknown: 'не выбран' };
   const refCode = partnerId ? (await db.partnerById(partnerId))?.code : '';
-  await notify(ctx.env, `🆕 Новая заявка\nЗаведение: ${cafe}${city ? ' · ' + city : ''}\nКонтакт: ${name}, ${phone}\nПакет: ${PL[plan] || plan}\nПартнёр: ${refCode || 'нет (прямая заявка)'}`);
+  await notify(ctx, `🆕 Новая заявка\nЗаведение: ${cafe}${city ? ' · ' + city : ''}\nКонтакт: ${name}, ${phone}\nПакет: ${PL[plan] || plan}\nПартнёр: ${refCode || 'нет (прямая заявка)'}`);
   return json({ ok: true, withPromo: !!partnerId });
 }
 
