@@ -6,6 +6,7 @@ jobs:
     env:
       YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
       YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
     steps:
       - name: yc
         run: |
@@ -21,3 +22,6 @@ jobs:
           S=$(date +%s); O=$(yc serverless function invoke --name nabor-api -d '{"httpMethod":"GET","queryStringParameters":{"r":"/api"},"headers":{}}' 2>&1 | tr '\n' ' ' | cut -c1-400); echo "::notice::invoke через API ($(( $(date +%s)-S )) с): $O"
           echo "::notice::функция: $(yc serverless function get nabor-api --format json | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const j=JSON.parse(s);console.log(j.status, j.http_invoke_url)})")"
           echo "::notice::логи: $(yc serverless function logs nabor-api --since 24h 2>&1 | tail -8 | tr '\n' ' ' | cut -c1-800)"
+          URL=$(yc serverless function get nabor-api --format json | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>console.log(JSON.parse(s).http_invoke_url))")
+          SB=$(node -e 'process.stdout.write(JSON.stringify({password:process.env.ADMIN_PASSWORD}))')
+          for i in 1 2 3; do echo "::notice::Telegram из функции, попытка $i: $(curl -sS -m 40 -X POST -H 'Content-Type: application/json' -d "$SB" "$URL?r=/api/tg-test" 2>&1 | cut -c1-300)"; sleep 5; done
