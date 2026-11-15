@@ -60,6 +60,7 @@ jobs:
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
+      NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
       TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
@@ -152,6 +153,7 @@ jobs:
           zip -q -r "$RUNNER_TEMP/fn.zip" index.js app.mjs db-ydb.mjs mail.mjs package.json package-lock.json
           MAIL_ENV=()
           if [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then MAIL_ENV=(--environment "SMTP_USER=$SMTP_USER" --environment "SMTP_PASS=$SMTP_PASS"); echo "::notice::Коды на почту включены ($SMTP_USER)"; else echo "::notice::Коды на почту выключены: нет секретов SMTP_USER и SMTP_PASS"; fi
+          [ -n "$NOTIFY_EMAIL" ] && MAIL_ENV+=(--environment "NOTIFY_EMAIL=$NOTIFY_EMAIL")
           OUT=$(yc serverless function version create \
             --function-name nabor-api \
             --runtime nodejs22 \
