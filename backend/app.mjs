@@ -79,8 +79,9 @@ async function notifyEmail({ env, mail }, text) {
   if (!mail || !mail.enabled || !to) return { ok: false, error: 'почта не настроена' };
   const t0 = Date.now();
   try {
-    await mail.send(to, String(text).split('\n')[0].slice(0, 100), String(text).slice(0, 3500));
-    return { ok: true, ms: Date.now() - t0 };
+    const info = await mail.send(to, String(text).split('\n')[0].slice(0, 100), String(text).slice(0, 3500));
+    const mask = a => String(a || '').replace(/^(.{2}).*(@.*)$/, '$1***$2');
+    return { ok: true, ms: Date.now() - t0, from: mask(env.SMTP_USER), to: mask(to), accepted: info && info.accepted ? info.accepted.map(mask) : undefined, rejected: info && info.rejected ? info.rejected.map(mask) : undefined, smtp: info && info.response ? String(info.response).slice(0, 120) : undefined };
   } catch (e) {
     const msg = String(e && e.message || e).slice(0, 120);
     console.error('notify email', msg);

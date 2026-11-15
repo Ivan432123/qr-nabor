@@ -25,7 +25,7 @@ export function createMail(env) {
   return {
     enabled: true,
     async send(to, subject, text) {
-      await transport.sendMail({ from: { name: env.MAIL_FROM_NAME || 'Цифровой набор для кафе', address: env.SMTP_USER }, to, subject, text });
+      return await transport.sendMail({ from: { name: env.MAIL_FROM_NAME || 'Цифровой набор для кафе', address: env.SMTP_USER }, to, subject, text });
     }
   };
 }
